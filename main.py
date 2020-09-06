@@ -1,10 +1,27 @@
 import pygame, sys, math
+from tkinter import *
+import tkinter as tk
 
+from PIL import Image, ImageTk
+
+root = Tk()
 display_width = 1280
 display_height = 720
 
 circuit_width = 50
 circuit_height = 30
+
+cell_size = 20
+canvas_width = circuit_width * cell_size
+canvas_height = circuit_height * cell_size
+
+circuit_view = Canvas(root,
+           width=canvas_width,
+           height=canvas_height)
+
+
+
+
 circuit = [[0] * circuit_width for _ in range(circuit_height)]
 circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
 
@@ -112,46 +129,42 @@ def get_path(position, curr_path, visited, end_point):
             next_pos = left
     return get_path(next_pos, curr_path, visited, end_point)
 
-
-gameDisplay = pygame.display.set_mode((display_width, display_height), pygame.SRCALPHA)
-surface = pygame.Surface((display_width, display_height), pygame.SRCALPHA)
-
 # images:
-wire_straight_img = pygame.image.load("images/wire_straight.png")
+wire_straight_img = Image.open('images/wire_straight.png')
 wire_straight_imgs = {
-    "horizontal": wire_straight_img,
-    "vertical": pygame.transform.rotate(wire_straight_img, 90),
+    "horizontal": ImageTk.PhotoImage(wire_straight_img),
+    "vertical": ImageTk.PhotoImage(wire_straight_img.rotate(90))
 }
 
-wire_corner_img = pygame.image.load("images/wire_corner.png")
+wire_corner_img = Image.open('images/wire_corner.png')
 wire_corner_imgs = {
-    "right_down": wire_corner_img,
-    "down_left": pygame.transform.rotate(wire_corner_img, 90),
-    "left_up": pygame.transform.rotate(wire_corner_img, 180),
-    "up_right": pygame.transform.rotate(wire_corner_img, 270),
+    "right_down": ImageTk.PhotoImage(wire_corner_img),
+    "down_left": ImageTk.PhotoImage(wire_corner_img.rotate(90)),
+    "left_up": ImageTk.PhotoImage(wire_corner_img.rotate(180)),
+    "up_right": ImageTk.PhotoImage(wire_corner_img.rotate(270))
 }
-wire_junction_img = pygame.image.load("images/wire_junction.png")
+wire_junction_img = Image.open('images/wire_junction.png')
 wire_junction_imgs = {
-    "up": wire_junction_img,
-    "left": pygame.transform.rotate(wire_junction_img, 90),
-    "down": pygame.transform.rotate(wire_junction_img, 180),
-    "right": pygame.transform.rotate(wire_junction_img, 270),
+    "up": ImageTk.PhotoImage(wire_junction_img),
+    "left": ImageTk.PhotoImage(wire_junction_img.rotate(90)),
+    "down": ImageTk.PhotoImage(wire_junction_img.rotate(180)),
+    "right": ImageTk.PhotoImage(wire_junction_img.rotate(270))
 }
-wire_cross_img = pygame.image.load("images/wire_cross.png")
-wire_cross_imgs = {"any": wire_cross_img}
+wire_cross_img = Image.open('images/wire_cross.png')
+wire_cross_imgs = {"any": ImageTk.PhotoImage(wire_cross_img)}
 
-resistor_img = pygame.image.load("images/resistor.png")
+resistor_img = Image.open('images/resistor.png')
 resistor_imgs = {
-    "horizontal": resistor_img,
-    "vertical": pygame.transform.rotate(resistor_img, 90),
+    "horizontal": ImageTk.PhotoImage(resistor_img),
+    "vertical": ImageTk.PhotoImage(resistor_img.rotate(90))
 }
 
-battery_img = pygame.image.load("images/battery.png")
+battery_img = Image.open('images/battery.png')
 battery_imgs = {
-    "right": battery_img,
-    "down": pygame.transform.rotate(battery_img, 90),
-    "left": pygame.transform.rotate(battery_img, 180),
-    "up": pygame.transform.rotate(battery_img, 270),
+    "right": ImageTk.PhotoImage(battery_img),
+    "down": ImageTk.PhotoImage(battery_img.rotate(90)),
+    "left": ImageTk.PhotoImage(battery_img.rotate(180)),
+    "up": ImageTk.PhotoImage(battery_img.rotate(270))
 }
 
 
@@ -195,12 +208,7 @@ class CircuitItem:
 
     def draw(self, i, j, direction=None, state=None):
         try:
-            surface.blit(
-                self.imgs[state if state is not None else self.default_state][
-                    direction if direction is not None else self.default_direction
-                ],
-                (20 * j, 20 * i),
-            )
+            circuit_view.create_image(j * 20, i * 20, anchor=NW, image=self.imgs[state if state is not None else self.default_state][direction if direction is not None else self.default_direction])
         except IndexError:
             pass
 
@@ -234,7 +242,6 @@ class CircuitSegment(CircuitItem):
 
 
 class Wire(CircuitItem):
-
     imgs = {
         "straight": wire_straight_imgs,
         "corner": wire_corner_imgs,
@@ -268,12 +275,7 @@ class Resistor(CircuitItem):
 
     def draw(self, i, j, direction=None):
         try:
-            surface.blit(
-                self.imgs[
-                    direction if direction is not None else self.default_direction
-                ],
-                (20 * j, 20 * i),
-            )
+            circuit_view.create_image(j*20, i*20, anchor=NW, image=self.imgs[self.default_direction if direction is None else direction])
         except IndexError:
             pass
 
@@ -483,207 +485,246 @@ def get_items(cir_objs):
     print(circuit_items[0].resistance)
 
 
+def draw_grid():
+    blockSize = 20  # Set the size of the grid block
+
+    for i in range(circuit_width + 1):
+        circuit_view.create_line(cell_size * i, 0, cell_size * i, canvas_height, fill="#B3B3B3")
+    for j in range(circuit_height + 1):
+        circuit_view.create_line(0, cell_size*j, canvas_width, cell_size*j, fill="#B3B3B3")
 # GUI
+
+def draw_circuit():
+    global circuit, circuit_objects
+    print(circuit)
+    circuit_view.delete(ALL)
+    draw_grid()
+    for i, row in enumerate(circuit):
+        for j, item in enumerate(row):
+            if item == 0:
+                continue
+
+            elif int(item) in [1, 2, 3, 4, 5, 6]:
+                obj = circuit_objects[i][j]
+                # Check for neighbors
+                up = (i - 1, j)
+                down = (i + 1, j)
+                right = (i, j + 1)
+                left = (i, j - 1)
+                possibilities = [up, down, right, left]
+                neighbors = []
+                for possibility in possibilities:
+                    try:
+                        value = ti(circuit, possibility)
+                        if item == 6:
+                            print(possibility, value)
+                        if value != 0:
+                            neighbors.append(possibility)
+                    except IndexError:
+                        continue
+                print(obj, len(neighbors))
+                if len(neighbors) == 0:
+                    obj.draw(i, j)
+                elif len(neighbors) == 1:
+                    # if on same row, horizontal
+                    if neighbors[0][0] == i:
+                        obj.draw(i, j, direction="horizontal")
+                        print(type(obj), 'horizontal')
+                    else:
+                        obj.draw(i, j, direction="vertical")
+                        print(type(obj), 'vertical')
+                elif len(neighbors) == 2:
+                    # Either straight or corner piece
+
+                    # If straight, check to see if either x or y of both are equal:
+
+                    if neighbors[0][0] == neighbors[1][0]:
+                        # same row - horizontal
+                        if item not in [5]:
+                            obj.draw(i, j, direction="horizontal")
+                            # surface.blit(wire_straight_imgs['horizontal'], (20*j, 20*i))
+                        elif item == 5:
+                            if dir == 1:
+                                surface.blit(
+                                    battery_imgs["right"], (20 * j, 20 * i)
+                                )
+                            else:
+                                surface.blit(
+                                    battery_imgs["left"], (20 * j, 20 * i)
+                                )
+
+
+                    elif neighbors[0][1] == neighbors[1][1]:
+                        # same column - vertical
+                        if item not in [5]:
+                            obj.draw(i, j, direction="vertical")
+                            # surface.blit(wire_straight_imgs['vertical'], (20 * j, 20 * i))
+                        elif item == 5:
+                            if dir == 1:
+                                surface.blit(
+                                    battery_imgs["down"], (20 * j, 20 * i)
+                                )
+                            else:
+                                surface.blit(
+                                    battery_imgs["up"], (20 * j, 20 * i)
+                                )
+
+
+                    else:
+                        # corner
+                        if item in [1, 2, 3]:
+                            if down in neighbors:
+                                # down and right - default
+                                if right in neighbors:
+                                    # right down
+                                    obj.draw(
+                                        i, j, state="corner", direction="right_down"
+                                    )
+                                    # surface.blit(wire_corner_imgs['right_down'], (20 * j, 20 * i))
+                                else:
+                                    # down left
+                                    obj.draw(
+                                        i, j, state="corner", direction="up_right"
+                                    )
+                                    # surface.blit(wire_corner_imgs['up_right'], (20 * j, 20 * i))
+                            else:
+                                # down and right - default
+                                if right in neighbors:
+                                    # upright
+                                    obj.draw(
+                                        i, j, state="corner", direction="down_left"
+                                    )
+                                    # surface.blit(wire_corner_imgs['down_left'], (20 * j, 20 * i))
+                                else:
+                                    # left-up left
+                                    obj.draw(
+                                        i, j, state="corner", direction="left_up"
+                                    )
+                                    # surface.blit(wire_corner_imgs['left_up'], (20 * j, 20 * i))
+
+                elif len(neighbors) == 3:
+                    for possibility in possibilities:
+                        if possibility not in neighbors:
+                            if possibility == down:
+                                obj.draw(
+                                    i, j, state="junction", direction="down"
+                                )
+                                # surface.blit(wire_junction_imgs['down'], (20 * j, 20 * i))
+                            elif possibility == left:
+                                obj.draw(
+                                    i, j, state="junction", direction="left"
+                                )
+                                # surface.blit(wire_junction_imgs['left'], (20 * j, 20 * i))
+                            elif possibility == up:
+                                obj.draw(i, j, state="junction", direction="up")
+                                # surface.blit(wire_junction_imgs['up'], (20 * j, 20 * i))
+                            else:
+                                obj.draw(
+                                    i, j, state="junction", direction="right"
+                                )
+                                # surface.blit(wire_junction_imgs['right'], (20 * j, 20 * i))
+
+                else:
+                    obj.draw(i, j, state="cross", direction="any")
+
+
+
+circuit_view.pack()
+def key(event):
+    print("pressed", repr(event.char))
+
+
+
+x, y = (0, 0)
+
+def add_resistor():
+    add_item(6)
+
+def add_battery():
+    add_item(5)
+
+def add_input_node():
+
+    add_item(2)
+
+def add_output_node():
+    add_item(3)
+
+def delete_item():
+    add_item(0)
+
+
+
+
+
+def add_item(code):
+    global x, y, circuit, circuit_objects
+    if code == 0:
+        new_obj = 0
+    if code == 1:
+        new_obj = Wire()
+
+    elif code == 6:
+        new_obj = Resistor(10)
+
+    circuit[y][x] = code
+    circuit_objects[y][x] = new_obj
+    draw_circuit()
+
+
+
+
+
+
+def choose_object(selection):
+    global next_object
+
+m = Menu(root, tearoff=0)
+m.add_command(label="Input Node", command=add_input_node)
+m.add_command(label="Output Node", command=add_output_node)
+m.add_command(label="Resistor", command=add_resistor)
+m.add_command(label="Battery", command=add_battery)
+m.add_separator()
+m.add_command(label="Delete", command=delete_item)
+
+
+def right_click(event):
+    global next_item, x, y
+    x, y = (event.x // 20, event.y // 20)
+
+    print("right clicked at", event.x, event.y)
+    try:
+        m.post(event.x_root, event.y_root)
+    finally:
+        m.grab_release()
+        print('here')
+
+        #print(next_item)
+
+def left_click(event):
+    global circuit, circuit_objects
+    x, y = (event.y // 20, event.x // 20)
+    circuit[x][y] = 1
+    circuit_objects[x][y] = Wire()
+    print("clicked at", x, y)
+    draw_circuit()
+
+
+#draw the grid
+
+circuit_view.bind("<Key>", key)
+circuit_view.bind("<Button-1>", left_click)
+circuit_view.bind("<Button-3>", right_click)
+
+
+
+draw_grid()
+mainloop()
+
+
 
 
 # 1 = cw, 2 = ccw
 dir = 1
 FPS = 60
 
-
-clock = pygame.time.Clock()
-
-grid_surface = pygame.Surface((display_width, display_height), pygame.SRCALPHA)
-
-
-def drawGrid():
-    grid_surface.fill((255, 255, 255, 0))
-    blockSize = 20  # Set the size of the grid block
-    for x in range(circuit_width + 1):
-        pygame.draw.line(
-            grid_surface, (0, 0, 0, 100), (20 * x, 0), (20 * x, 20 * circuit_height), 1
-        )
-    for y in range(circuit_height + 1):
-        pygame.draw.line(
-            grid_surface, (0, 0, 0, 100), (0, 20 * y), (20 * circuit_width, 20 * y), 1
-        )
-
-
-def simulation_loop():
-    pygame.draw.rect(
-        gameDisplay, (255, 255, 255), [0, 0, display_width, display_height]
-    )
-    drawGrid()
-
-    changed = True
-    while 1:
-        # Event handling
-
-        for event in pygame.event.get():
-
-            if event.type == pygame.QUIT:
-                sys.exit()
-
-            # If it's a click:
-            if event.type == pygame.MOUSEBUTTONUP:
-                pos = pygame.mouse.get_pos()
-
-                print(pos)
-                x, y = (pos[1] // 20, pos[0] // 20)
-                current = ti(circuit, (x, y))
-                # if empty, add wire
-                if current == 0:
-                    circuit[x][y] = 1
-                    circuit_objects[x][y] = Wire()
-                changed = True
-
-        # Drawing circuit:
-
-        # surface.fill((255,255,255,255))
-        # surface.fill((255, 255, 255, 0))
-
-        # if changed, redraw circuit:
-        if changed:
-            surface.fill((255, 255, 255, 255))
-            for i, row in enumerate(circuit):
-                for j, item in enumerate(row):
-                    if item == 0:
-                        continue
-
-                    elif int(item) in [1, 2, 3, 5, 6]:
-                        obj = circuit_objects[i][j]
-                        # Check for neighbors
-                        up = (i - 1, j)
-                        down = (i + 1, j)
-                        right = (i, j + 1)
-                        left = (i, j - 1)
-                        possibilities = [up, down, right, left]
-                        neighbors = []
-                        for possibility in possibilities:
-                            try:
-                                value = ti(circuit, possibility)
-                                if value != 0:
-                                    neighbors.append(possibility)
-                            except IndexError:
-                                continue
-
-                        if len(neighbors) == 0:
-                            obj.draw(i, j)
-                        elif len(neighbors) == 1:
-                            # if on same row, horizontal
-                            if neighbors[0][0] == i:
-                                obj.draw(i, j, direction="horizontal")
-                            else:
-                                obj.draw(i, j, direction="vertical")
-                        elif len(neighbors) == 2:
-                            # Either straight or corner piece
-
-                            # If straight, check to see if either x or y of both are equal:
-
-                            if neighbors[0][0] == neighbors[1][0]:
-                                # same row - horizontal
-                                if item not in [5, 6]:
-                                    obj.draw(i, j, direction="horizontal")
-                                    # surface.blit(wire_straight_imgs['horizontal'], (20*j, 20*i))
-                                elif item == 5:
-                                    if dir == 1:
-                                        surface.blit(
-                                            battery_imgs["right"], (20 * j, 20 * i)
-                                        )
-                                    else:
-                                        surface.blit(
-                                            battery_imgs["left"], (20 * j, 20 * i)
-                                        )
-                                elif item == 6:
-                                    surface.blit(
-                                        resistor_imgs["horizontal"], (20 * j, 20 * i)
-                                    )
-
-                            elif neighbors[0][1] == neighbors[1][1]:
-                                # same column - vertical
-                                if item not in [5, 6]:
-                                    obj.draw(i, j, direction="vertical")
-                                    # surface.blit(wire_straight_imgs['vertical'], (20 * j, 20 * i))
-                                elif item == 5:
-                                    if dir == 1:
-                                        surface.blit(
-                                            battery_imgs["down"], (20 * j, 20 * i)
-                                        )
-                                    else:
-                                        surface.blit(
-                                            battery_imgs["up"], (20 * j, 20 * i)
-                                        )
-                                elif item == 6:
-                                    surface.blit(
-                                        resistor_imgs["vertical"], (20 * j, 20 * i)
-                                    )
-
-                            else:
-                                # corner
-                                if down in neighbors:
-                                    # down and right - default
-                                    if right in neighbors:
-                                        # right down
-                                        obj.draw(
-                                            i, j, state="corner", direction="right_down"
-                                        )
-                                        # surface.blit(wire_corner_imgs['right_down'], (20 * j, 20 * i))
-                                    else:
-                                        # down left
-                                        obj.draw(
-                                            i, j, state="corner", direction="up_right"
-                                        )
-                                        # surface.blit(wire_corner_imgs['up_right'], (20 * j, 20 * i))
-                                else:
-                                    # down and right - default
-                                    if right in neighbors:
-                                        # upright
-                                        obj.draw(
-                                            i, j, state="corner", direction="down_left"
-                                        )
-                                        # surface.blit(wire_corner_imgs['down_left'], (20 * j, 20 * i))
-                                    else:
-                                        # left-up left
-                                        obj.draw(
-                                            i, j, state="corner", direction="left_up"
-                                        )
-                                        # surface.blit(wire_corner_imgs['left_up'], (20 * j, 20 * i))
-
-                        elif len(neighbors) == 3:
-                            for possibility in possibilities:
-                                if possibility not in neighbors:
-                                    if possibility == down:
-                                        obj.draw(
-                                            i, j, state="junction", direction="down"
-                                        )
-                                        # surface.blit(wire_junction_imgs['down'], (20 * j, 20 * i))
-                                    elif possibility == left:
-                                        obj.draw(
-                                            i, j, state="junction", direction="left"
-                                        )
-                                        # surface.blit(wire_junction_imgs['left'], (20 * j, 20 * i))
-                                    elif possibility == up:
-                                        obj.draw(i, j, state="junction", direction="up")
-                                        # surface.blit(wire_junction_imgs['up'], (20 * j, 20 * i))
-                                    else:
-                                        obj.draw(
-                                            i, j, state="junction", direction="right"
-                                        )
-                                        # surface.blit(wire_junction_imgs['right'], (20 * j, 20 * i))
-
-                        else:
-                            obj.draw(i, j, state="cross", direction="any")
-            changed = False
-
-            # surface.blit(wire_straight_img, (20*i, 20*j))
-
-            gameDisplay.blit(surface, (0, 0))
-            gameDisplay.blit(grid_surface, (0, 0))
-
-        pygame.display.update()
-
-        clock.tick(FPS)
-
-
-pygame.init()
-simulation_loop()
