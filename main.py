@@ -1,7 +1,7 @@
 import pygame, sys, math
 from tkinter import *
 
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageOps
 
 root = Tk()
 display_width = 1280
@@ -160,6 +160,22 @@ input_node_junction_imgs = {
 input_node_cross_img = Image.open("images/input_node_cross.png")
 input_node_cross_imgs = {"any": ImageTk.PhotoImage(input_node_cross_img)}
 
+output_node_corner_left_img = Image.open("images/output_node_corner.png")
+output_node_corner_left_imgs = {
+    "down": ImageTk.PhotoImage(output_node_corner_left_img),
+    "right": ImageTk.PhotoImage(output_node_corner_left_img.rotate(90)),
+    "up": ImageTk.PhotoImage(output_node_corner_left_img.rotate(180)),
+    "left": ImageTk.PhotoImage(output_node_corner_left_img.rotate(270)),
+}
+
+output_node_corner_right_img = ImageOps.mirror(output_node_corner_left_img)
+output_node_corner_right_imgs = {
+    "down": ImageTk.PhotoImage(output_node_corner_right_img),
+    "right": ImageTk.PhotoImage(output_node_corner_right_img.rotate(90)),
+    "up": ImageTk.PhotoImage(output_node_corner_right_img.rotate(180)),
+    "left": ImageTk.PhotoImage(output_node_corner_right_img.rotate(270)),
+}
+
 
 output_node_junction_img = Image.open("images/output_node_junction.png")
 output_node_junction_imgs = {
@@ -313,7 +329,12 @@ class InputNode(Wire):
 
 
 class OutputNode(Wire):
-    imgs = {"junction": output_node_junction_imgs, "cross": output_node_cross_imgs}
+    imgs = {
+        "corner_left": output_node_corner_left_imgs,
+        "corner_right": output_node_corner_right_imgs,
+        "junction": output_node_junction_imgs,
+        "cross": output_node_cross_imgs,
+    }
 
     default_state = "junction"
 
@@ -792,17 +813,54 @@ def draw_circuit():
                                     # surface.blit(wire_junction_imgs['right'], (20 * j, 20 * i))
                                 break
                     if item == 3:
-                        for possibility in possibilities:
-                            if possibility not in neighbors:
-                                if (
-                                    possibility[0] == direction_neighbor[0]
-                                    or possibility[1] == direction_neighbor[1]
-                                ):
-                                    obj.draw(i, j)
-                                else:
 
-                                    obj.draw(i, j, state="cross")
+                        # first check if we should do junciton or corner - if there is a neighbor opposite to direction, do corner
+                        found = False
+                        for neighbor in neighbors:
+                            if neighbor != direction_neighbor and (
+                                neighbor[0] == direction_neighbor[0]
+                                or neighbor[1] == direction_neighbor[1]
+                            ):
+                                found = True
                                 break
+                        if found:
+                            # if the neighbor that is not parallel to direction is to the left of direction, do left
+                            found = False
+                            for neighbor in neighbors:
+                                if (
+                                    neighbor != direction_neighbor
+                                    and neighbor[0] != direction_neighbor[0]
+                                    and neighbor[1] != direction_neighbor[1]
+                                ):
+                                    found = True
+                                    if direction_neighbor == up:
+                                        # print(neighbor, left)
+                                        if neighbor == left:
+                                            state = "corner_left"
+                                        else:
+                                            state = "corner_right"
+
+                                    elif direction_neighbor == left:
+                                        if neighbor == down:
+                                            state = "corner_left"
+                                        else:
+                                            state = "corner_right"
+                                    elif direction_neighbor == down:
+                                        if neighbor == right:
+                                            state = "corner_left"
+                                        else:
+                                            state = "corner_right"
+                                    else:
+                                        if neighbor == up:
+                                            state = "corner_left"
+                                        else:
+                                            state = "corner_right"
+                                    print("state: ", state)
+                                    obj.draw(i, j, state=state)
+                                    break
+
+                        else:
+                            obj.draw(i, j, state="junction")
 
                 else:
                     obj.draw(i, j, state="cross", direction="any")
