@@ -13,8 +13,8 @@ def validate_float(flt, positive=False):
                 flt = flt[1:]
         except IndexError:
             pass
-        if flt == "":
-            return True
+    if flt == "":
+        return True
     try:
         float(flt)
         return True
@@ -27,16 +27,18 @@ def validate_voltage(flt):
 
 
 def validate_resistance(flt):
-    return validate_float(flt, positive=True) and float(flt) > 0
+    return validate_float(flt, positive=True)
 
 
 class BatteryDialog:
-    def __init__(self, parent):
+    def __init__(self, parent, default):
         top = self.top = Toplevel(parent)
         self.voltage_label = Label(top, text="Voltage")
         self.voltage_label.pack()
 
-        self.voltage_box = Entry(top)
+        entry = StringVar()
+        entry.set(default)
+        self.voltage_box = Entry(top, textvariable=entry)
         self.reg = top.register(validate_voltage)
         self.voltage_box.config(validate="key", validatecommand=(self.reg, "%P"))
         self.voltage_box.pack()
@@ -51,12 +53,13 @@ class BatteryDialog:
 
 
 class ResistorDialog:
-    def __init__(self, parent):
+    def __init__(self, parent, default):
         top = self.top = Toplevel(parent)
         self.resistance_label = Label(top, text="Resistance")
         self.resistance_label.pack()
-
-        self.resistance_box = Entry(top)
+        entry = StringVar()
+        entry.set(default)
+        self.resistance_box = Entry(top, textvariable=entry)
         self.reg = top.register(validate_resistance)
         self.resistance_box.config(validate="key", validatecommand=(self.reg, "%P"))
         self.resistance_box.pack()

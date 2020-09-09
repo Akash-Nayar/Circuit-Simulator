@@ -303,10 +303,6 @@ class Wire(CircuitItem):
     def __init__(self, resistance=0):
         super().__init__(resistance=resistance)
 
-    """@property
-    def resistance(self):
-        return super().resistance"""
-
 
 def get_direction(dir):
     if dir == 0:
@@ -367,14 +363,6 @@ class Resistor(CircuitItem):
 
     def __init__(self, resistance):
         super().__init__(resistance=resistance)
-
-    """@property
-    def resistance(self):
-        return super().resistance
-
-    @resistance.setter
-    def resistance(self, r):
-        super(Resistor, self).resistance = r"""
 
     def __repr__(self):
         return f"Resistor({self.resistance})"
@@ -469,7 +457,7 @@ class ParallelCell(CircuitItem):
 """
                 # If it is a resistor:
                 if item == 6:
-                    path_items.append(Resistor(10))
+                    path_items.append(ti(circuit_objects, step))
 
                 # If it is an input node
                 if item == 2:
@@ -532,89 +520,6 @@ class ParallelCell(CircuitItem):
         return 0 if sum == 0 else round(1 / sum, 3)
 
 
-def get_items(cir_objs):
-    current_path = []
-    paths = get_path(origin, current_path, already_visited, end)
-
-    print("paths", paths)
-
-    # for path in paths:
-    # print_path(path)
-
-    # New approach
-
-    # Iterate through each step, checking the item at step
-    x_path = []
-    circuit_items = []
-
-    skip_until = False
-    target = (0, 0)
-    for i, step in enumerate(paths[0][1:]):
-        if skip_until and step != target:
-            continue
-
-        skip_until = False
-        item = ti(circuit, step)
-        x_path.append(step)
-
-        # print(item)
-
-        # Check for resistor:
-        if item == 6:
-            circuit_items.append(Resistor(10))
-
-        # Check for node:
-        if item == 2:
-            previous_item = ti(circuit, paths[0][i])
-            # Generate new paths starting at this node:
-
-            new_paths = get_path(step, [], [paths[0][i]], end)
-
-            # print_path(new_path)
-            # Find the end, when num of input and output nodes are equal
-            num_input = 0
-            num_output = 0
-            for new_step in new_paths[0]:
-                new_item = ti(circuit, new_step)
-                if new_item == 2:
-                    num_input += 1
-                elif int(new_item) == 3:
-                    num_output += 1
-                if num_input == num_output:
-                    ending = new_step
-                    break
-            # Shorten the paths
-            shortened_paths = []
-            for new_path in new_paths:
-                shortened_path = new_path[: new_path.index(ending) + 1]
-                if shortened_path not in shortened_paths:
-                    shortened_paths.append(new_path[: new_path.index(ending) + 1])
-                    # print_path(new_path[:new_path.index(ending)+1])
-            # print(shortened_paths)
-
-            circuit_items.append(ParallelCell(shortened_paths))
-            skip_until = True
-            target = ending
-
-    # print_path(x_path)
-    print("circuit_items", circuit_items)
-
-    circuit_resistance = sum([x.resistance for x in circuit_items])
-    print("resistance", circuit_resistance)
-
-    R_tot = sum([x.resistance for x in circuit_items])
-    V_tot = 15
-    I_tot = V_tot / R_tot
-    for item in circuit_items:
-        item.voltage = item.resistance * I_tot
-
-    for item in circuit_items[0].paths_items:
-        print(item.resistance, item.current, item.voltage)
-
-    print("total_current", I_tot)
-    print(circuit_items[0].resistance)
-
-
 def draw_grid():
     blockSize = 20  # Set the size of the grid block
 
@@ -629,6 +534,26 @@ def draw_grid():
 
 
 # GUI
+
+
+def get_possibilities(i, j):
+    up = (i - 1, j)
+    down = (i + 1, j)
+    right = (i, j + 1)
+    left = (i, j - 1)
+    return [up, down, right, left]
+
+
+def get_neighbors(arr, possibilities):
+    neighbors = []
+    for possibility in possibilities:
+        try:
+            value = ti(arr, possibility)
+            if value != 0:
+                neighbors.append(possibility)
+        except IndexError:
+            continue
+    return neighbors
 
 
 def draw_circuit():
@@ -648,17 +573,9 @@ def draw_circuit():
                 down = (i + 1, j)
                 right = (i, j + 1)
                 left = (i, j - 1)
-                possibilities = [up, down, right, left]
-                neighbors = []
-                for possibility in possibilities:
-                    try:
-                        value = ti(circuit, possibility)
-                        if item == 6:
-                            print(possibility, value)
-                        if value != 0:
-                            neighbors.append(possibility)
-                    except IndexError:
-                        continue
+                possibilities = get_possibilities(i, j)
+                up, down, right, left = possibilities
+                neighbors = get_neighbors(circuit, possibilities)
 
                 # if it's output node
                 if item == 3:
@@ -963,9 +880,8 @@ def left_click(event):
         old_x, old_y = x, y
     elif item == 3:
         real_item = circuit[x][y]
-        print("editing")
         obj = circuit_objects[x][y]
-        print(obj.default_direction, circuit[x][y])
+        # print(obj.default_direction, circuit[x][y])
         if real_item == 3.0:
             circuit_objects[x][y] = OutputNode(0.5)
             circuit[x][y] = 3.5
@@ -981,18 +897,21 @@ def left_click(event):
 
     # Allow to change battery voltage:
     elif item == 5:
-        battery_dialog = gui.BatteryDialog(root)
+        obj = circuit_objects[x][y]
+        battery_dialog = gui.BatteryDialog(root, obj.voltage)
         root.wait_window(battery_dialog.top)
         print("voltage: ", gui.voltage)
-        obj = circuit_objects[x][y]
+
         obj.voltage = gui.voltage
     # Allow to change resistor
     elif item == 6:
-        resistance_dialog = gui.ResistorDialog(root)
+        obj = circuit_objects[x][y]
+        resistance_dialog = gui.ResistorDialog(root, obj.resistance)
         root.wait_window(resistance_dialog.top)
         print("voltage: ", gui.resistance)
-        obj = circuit_objects[x][y]
+
         obj.resistance = gui.resistance
+        print(obj)
 
     # print("clicked at", x, y)
 
