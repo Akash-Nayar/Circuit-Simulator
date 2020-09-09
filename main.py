@@ -1,5 +1,7 @@
 import pygame, sys, math
+import gui
 from tkinter import *
+from tkinter import simpledialog
 
 from PIL import Image, ImageTk, ImageOps
 
@@ -58,7 +60,7 @@ def print_circuit(arr):
     print(text)
 
 
-print_circuit(circuit)
+# print_circuit(circuit)
 
 
 def ti(arr, tup):
@@ -213,10 +215,10 @@ class CircuitItem:
     default_state = None
     default_direction = None
 
-    def __init__(self):
-        self._voltage = 0
-        self._resistance = 0
-        self._current = 0
+    def __init__(self, voltage=0, resistance=0, current=0):
+        self._voltage = voltage
+        self._resistance = resistance
+        self._current = current
 
     @property
     def voltage(self):
@@ -299,11 +301,11 @@ class Wire(CircuitItem):
     default_direction = "horizontal"
 
     def __init__(self, resistance=0):
-        self._resistance = resistance
+        super().__init__(resistance=resistance)
 
-    @property
+    """@property
     def resistance(self):
-        return super().resistance
+        return super().resistance"""
 
 
 def get_direction(dir):
@@ -325,7 +327,7 @@ class InputNode(Wire):
     default_direction = "right"
 
     def __init__(self):
-        super()
+        super().__init__(self)
 
 
 class OutputNode(Wire):
@@ -339,6 +341,7 @@ class OutputNode(Wire):
     default_state = "junction"
 
     def __init__(self, direction):
+        super().__init__()
         self.default_direction = get_direction(direction)
 
     def draw(self, i, j, direction=None, state=None):
@@ -363,11 +366,15 @@ class Resistor(CircuitItem):
     default_direction = "horizontal"
 
     def __init__(self, resistance):
-        self._resistance = resistance
+        super().__init__(resistance=resistance)
 
-    @property
+    """@property
     def resistance(self):
         return super().resistance
+
+    @resistance.setter
+    def resistance(self, r):
+        super(Resistor, self).resistance = r"""
 
     def __repr__(self):
         return f"Resistor({self.resistance})"
@@ -391,8 +398,8 @@ class Battery(CircuitItem):
     default_direction = "left"
     imgs = battery_imgs
 
-    def __init__(self, voltage=15):
-        self._voltage = voltage
+    def __init__(self, voltage):
+        super().__init__(voltage=voltage)
 
     def draw(self, i, j, direction=None):
         try:
@@ -410,6 +417,7 @@ class Battery(CircuitItem):
 
 class ParallelCell(CircuitItem):
     def __init__(self, paths):
+        super().__init__()
         self.paths = paths
         self.origin = paths[0][0]
         self.end = paths[0][-1]
@@ -530,8 +538,8 @@ def get_items(cir_objs):
 
     print("paths", paths)
 
-    for path in paths:
-        print_path(path)
+    # for path in paths:
+    # print_path(path)
 
     # New approach
 
@@ -911,7 +919,7 @@ def add_item(code):
     elif int(code) == 3:
         new_obj = OutputNode(direction=round(code % 1, 2))
     elif code == 5:
-        new_obj = Battery()
+        new_obj = Battery(voltage=15)
     elif code == 6:
         new_obj = Resistor(10)
 
@@ -939,6 +947,8 @@ def right_click(event):
 
 
 old_x, old_y = None, None
+
+username = ""
 
 
 def left_click(event):
@@ -968,6 +978,21 @@ def left_click(event):
         else:
             circuit_objects[x][y] = OutputNode(0.0)
             circuit[x][y] = 3.0
+
+    # Allow to change battery voltage:
+    elif item == 5:
+        battery_dialog = gui.BatteryDialog(root)
+        root.wait_window(battery_dialog.top)
+        print("voltage: ", gui.voltage)
+        obj = circuit_objects[x][y]
+        obj.voltage = gui.voltage
+    # Allow to change resistor
+    elif item == 6:
+        resistance_dialog = gui.ResistorDialog(root)
+        root.wait_window(resistance_dialog.top)
+        print("voltage: ", gui.resistance)
+        obj = circuit_objects[x][y]
+        obj.resistance = gui.resistance
 
     # print("clicked at", x, y)
 
@@ -1079,8 +1104,8 @@ def run_circuit():
 
     print("paths", paths)
 
-    for path in paths:
-        print_path(path)
+    # for path in paths:
+    # print_path(path)
 
     # New approach
 
@@ -1117,8 +1142,8 @@ def run_circuit():
             # Find the end, when num of input and output nodes are equal
             num_input = 0
             num_output = 0
-            print("newpaths0")
-            print_path(new_paths[0])
+            # print("newpaths0")
+            # print_path(new_paths[0])
             for new_step in new_paths[0]:
 
                 new_item = ti(circuit, new_step)
@@ -1149,7 +1174,7 @@ def run_circuit():
     print("resistance", circuit_resistance)
 
     R_tot = sum([x.resistance for x in circuit_objs])
-    V_tot = 15
+    V_tot = ti(circuit_objects, end).voltage
     I_tot = V_tot / R_tot
     for item in circuit_objs:
         item.voltage = item.resistance * I_tot
