@@ -1,4 +1,3 @@
-import pygame, sys, math
 import gui
 from tkinter import *
 from tkinter import simpledialog
@@ -25,6 +24,9 @@ options_view.grid(row=0, column=1, sticky="n")
 
 circuit = [[0] * circuit_width for _ in range(circuit_height)]
 circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
+
+draw_labels = True
+
 
 
 def print_path(p):
@@ -368,14 +370,24 @@ class Resistor(CircuitItem):
         return f"Resistor({self.resistance})"
 
     def draw(self, i, j, direction=None):
+        global draw_labels
+
+
+        direction = self.default_direction if direction is None else direction
+        if draw_labels:
+
+            if direction == 'horizontal':
+                #Draw labels above
+                circuit_view.create_text(j*20+10, i*20 - 10, text=f'{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω')
+            else:
+                circuit_view.create_text(j * 20 - 10, i * 20 + 10, text=f'{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω', angle=90)
+
         try:
             circuit_view.create_image(
                 j * 20,
                 i * 20,
                 anchor=NW,
-                image=self.imgs[
-                    self.default_direction if direction is None else direction
-                ],
+                image=self.imgs[direction],
             )
         except IndexError:
             pass
@@ -390,6 +402,14 @@ class Battery(CircuitItem):
         super().__init__(voltage=voltage)
 
     def draw(self, i, j, direction=None):
+
+        direction = self.default_direction if direction is None else direction
+        if draw_labels:
+            if direction in ['left', 'right']:
+                #place above
+                circuit_view.create_text(j * 20 + 10, i * 20 - 10, text=f'{int(self.voltage) if self.voltage.is_integer() else self.voltage} V')
+
+
         try:
             circuit_view.create_image(
                 j * 20,
@@ -401,6 +421,9 @@ class Battery(CircuitItem):
             )
         except IndexError:
             pass
+
+    def __repr__(self):
+        return f'Battery({self.voltage})'
 
 
 class ParallelCell(CircuitItem):
@@ -517,6 +540,10 @@ class ParallelCell(CircuitItem):
         for segment in self.paths_items:
             if segment.resistance > 0:
                 sum += 1 / segment.resistance
+
+            # if even just 1 path has 0 resistance, whole cell has 0
+            else:
+                return 0
         return 0 if sum == 0 else round(1 / sum, 3)
 
 
@@ -836,9 +863,9 @@ def add_item(code):
     elif int(code) == 3:
         new_obj = OutputNode(direction=round(code % 1, 2))
     elif code == 5:
-        new_obj = Battery(voltage=15)
+        new_obj = Battery(voltage=15.0)
     elif code == 6:
-        new_obj = Resistor(10)
+        new_obj = Resistor(10.0)
 
     circuit[y][x] = code
     circuit_objects[y][x] = new_obj
@@ -873,11 +900,12 @@ def left_click(event):
     x, y = (event.y // 20, event.x // 20)
     if old_x == x and old_y == y:
         return
+    old_x, old_y = x, y
     item = int(circuit[x][y])
+    print(item, ti(circuit_objects, (x,y)))
     if item == 0:
         circuit[x][y] = 1
         circuit_objects[x][y] = Wire()
-        old_x, old_y = x, y
     elif item == 3:
         real_item = circuit[x][y]
         obj = circuit_objects[x][y]
@@ -920,7 +948,7 @@ def left_click(event):
 
 # draw the grid
 def handle_key(event):
-    global x, y
+    global circuit_objects, x, y
     x, y = (event.x // 20, event.y // 20)
     if event.char == "r":
         add_resistor()
@@ -930,11 +958,20 @@ def handle_key(event):
         add_input_node()
     elif event.char == "o":
         add_output_node()
-
+    elif event.char == 't':
+        item = ti(circuit_objects, (y, x))
+        print(item)
+        print("voltage: ", item.voltage)
+        print("resistance: ", item.resistance)
+        print("current: ", item.current)
+def reset(event):
+    global old_x, old_y
+    old_x, old_y = None, None
 
 circuit_view.bind("<Key>", key)
 circuit_view.bind("<B1-Motion>", left_click)
 circuit_view.bind("<Button-1>", left_click)
+circuit_view.bind("<ButtonRelease-1>", reset)
 circuit_view.bind("<Button-3>", right_click)
 
 circuit_view.bind_all("<KeyRelease>", handle_key)
@@ -1105,7 +1142,19 @@ def run_circuit():
     print(R_tot)
 
 
+
 run_button = Button(options_view, text="Run", command=run_circuit).grid(row=3, column=0)
+
+
+def toggle_labels():
+    global draw_labels
+    draw_labels ^= True
+    draw_circuit()
+
+labels_button = Checkbutton(options_view, text="Hide Labels", command=toggle_labels).grid(row=5, sticky=W)
+
+
+
 clear_button = Button(options_view, text="Clear", command=clear_circuit).grid(
     row=4, column=0
 )

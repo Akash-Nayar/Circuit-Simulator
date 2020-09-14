@@ -1,8 +1,8 @@
 from tkinter import *
 
 
-voltage = 0
-resistance = 0
+voltage = 15.0
+resistance = 10.0
 
 
 def validate_float(flt, positive=False):
