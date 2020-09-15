@@ -1,7 +1,8 @@
 import gui
+import math
 from tkinter import *
 from tkinter import simpledialog
-
+import matplotlib.pyplot as plt
 from PIL import Image, ImageTk, ImageOps
 
 root = Tk()
@@ -25,8 +26,9 @@ options_view.grid(row=0, column=1, sticky="n")
 circuit = [[0] * circuit_width for _ in range(circuit_height)]
 circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
 
-draw_labels = True
+capacitors = []
 
+draw_labels = True
 
 
 def print_path(p):
@@ -211,16 +213,24 @@ battery_imgs = {
     "up": ImageTk.PhotoImage(battery_img.rotate(270)),
 }
 
+capacitor_img = Image.open("images/capacitor.png")
+capacitor_imgs = {
+    "horizontal": ImageTk.PhotoImage(capacitor_img),
+    "vertical": ImageTk.PhotoImage(capacitor_img.rotate(90)),
+}
+
 
 class CircuitItem:
     imgs = {}
     default_state = None
     default_direction = None
 
-    def __init__(self, voltage=0, resistance=0, current=0):
+    def __init__(self, voltage=0, resistance=0, current=0, capacitance=0, charge=0):
         self._voltage = voltage
         self._resistance = resistance
         self._current = current
+        self._capacitance = capacitance
+        self._charge = charge
 
     @property
     def voltage(self):
@@ -250,6 +260,26 @@ class CircuitItem:
     def current(self, c):
         self._current = c
 
+    @property
+    def capacitance(self):
+        return self._capacitance
+
+    @capacitance.setter
+    def capacitance(self, c):
+        if c < 0:
+            raise ValueError("Invalid capacitance: c < 0")
+        self._capacitance = c
+
+    @property
+    def charge(self):
+        return self._charge
+
+    @charge.setter
+    def charge(self, q):
+        self._charge = q
+        if self.capacitance != 0:
+            self.voltage = q / self.capacitance
+
     def draw(self, i, j, direction=None, state=None):
         try:
             circuit_view.create_image(
@@ -266,10 +296,8 @@ class CircuitItem:
 
 class CircuitSegment(CircuitItem):
     def __init__(self, contents):
+        super().__init__()
         self.contents = contents
-        self._voltage = 0
-        self._resistance = 0
-        self._current = 0
 
     @property
     def resistance(self):
@@ -290,6 +318,24 @@ class CircuitSegment(CircuitItem):
 
     def __repr__(self):
         return f"{[item for item in self.contents]}"
+
+    @property
+    def capacitance(self):
+        c_sum = 0
+        for item in self.contents:
+            if item.capacitance != 0:
+                c_sum += 1 / item.capacitance
+        return 0 if c_sum == 0 else 1 / c_sum
+
+    @property
+    def charge(self):
+        return self._charge
+
+    @charge.setter
+    def charge(self, q):
+        for item in self.contents:
+            if item.capacitance != 0:
+                item.charge = q
 
 
 class Wire(CircuitItem):
@@ -363,8 +409,12 @@ class Resistor(CircuitItem):
     imgs = resistor_imgs
     default_direction = "horizontal"
 
+    id = 1
+
     def __init__(self, resistance):
         super().__init__(resistance=resistance)
+        self.id = Resistor.id
+        Resistor.id += 1
 
     def __repr__(self):
         return f"Resistor({self.resistance})"
@@ -372,22 +422,27 @@ class Resistor(CircuitItem):
     def draw(self, i, j, direction=None):
         global draw_labels
 
-
         direction = self.default_direction if direction is None else direction
         if draw_labels:
 
-            if direction == 'horizontal':
-                #Draw labels above
-                circuit_view.create_text(j*20+10, i*20 - 10, text=f'{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω')
+            if direction == "horizontal":
+                # Draw labels above
+                circuit_view.create_text(
+                    j * 20 + 10,
+                    i * 20 - 10,
+                    text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
+                )
             else:
-                circuit_view.create_text(j * 20 - 10, i * 20 + 10, text=f'{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω', angle=90)
+                circuit_view.create_text(
+                    j * 20 - 10,
+                    i * 20 + 10,
+                    text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
+                    angle=90,
+                )
 
         try:
             circuit_view.create_image(
-                j * 20,
-                i * 20,
-                anchor=NW,
-                image=self.imgs[direction],
+                j * 20, i * 20, anchor=NW, image=self.imgs[direction]
             )
         except IndexError:
             pass
@@ -405,10 +460,13 @@ class Battery(CircuitItem):
 
         direction = self.default_direction if direction is None else direction
         if draw_labels:
-            if direction in ['left', 'right']:
-                #place above
-                circuit_view.create_text(j * 20 + 10, i * 20 - 10, text=f'{int(self.voltage) if self.voltage.is_integer() else self.voltage} V')
-
+            if direction in ["left", "right"]:
+                # place above
+                circuit_view.create_text(
+                    j * 20 + 10,
+                    i * 20 - 10,
+                    text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
+                )
 
         try:
             circuit_view.create_image(
@@ -423,7 +481,55 @@ class Battery(CircuitItem):
             pass
 
     def __repr__(self):
-        return f'Battery({self.voltage})'
+        return f"Battery({self.voltage})"
+
+
+class Capacitor(CircuitItem):
+
+    id = 1
+
+    imgs = capacitor_imgs
+    default_direction = "horizontal"
+
+    def __init__(self, capacitance):
+        super().__init__(capacitance=capacitance)
+        self.times = []
+        self.charges = []
+        self._tau = 0.0
+        self.id = Capacitor.id
+        Capacitor.id += 1
+
+    @property
+    def tau(self):
+        return self.capacitance * R_eq
+
+    def draw(self, i, j, direction=None):
+        global draw_labels
+
+        direction = self.default_direction if direction is None else direction
+        if draw_labels:
+
+            if direction == "horizontal":
+                # Draw labels above
+                circuit_view.create_text(
+                    j * 20 + 10,
+                    i * 20 - 10,
+                    text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
+                )
+            else:
+                circuit_view.create_text(
+                    j * 20 - 10,
+                    i * 20 + 10,
+                    text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
+                    angle=90,
+                )
+
+        try:
+            circuit_view.create_image(
+                j * 20, i * 20, anchor=NW, image=self.imgs[direction]
+            )
+        except IndexError:
+            pass
 
 
 class ParallelCell(CircuitItem):
@@ -434,9 +540,6 @@ class ParallelCell(CircuitItem):
         self.end = paths[0][-1]
         self._voltage = 0
         # Check paths for parallels within
-        print("got here")
-        # for path in paths:
-        # print_path(path)
 
         # 2D, each row is a path, each column represent object
         self.paths_items = []
@@ -482,8 +585,10 @@ class ParallelCell(CircuitItem):
                 if item == 6:
                     path_items.append(ti(circuit_objects, step))
 
+                elif item == 7:
+                    path_items.append(ti(circuit_objects, step))
                 # If it is an input node
-                if item == 2:
+                elif item == 2:
                     new_nodes.append(step)
                     previous_item = ti(circuit, paths[0][i])
                     # Generate new paths starting at this node:
@@ -546,6 +651,20 @@ class ParallelCell(CircuitItem):
                 return 0
         return 0 if sum == 0 else round(1 / sum, 3)
 
+    @property
+    def charge(self):
+        return self._charge
+
+    @charge.setter
+    def charge(self, q):
+        self._charge = q
+        for path in self.paths_items:
+            path.charge = q * (path.capacitance / self.capacitance)
+
+    @property
+    def capacitance(self):
+        return sum([segment.capacitance for segment in self.paths_items])
+
 
 def draw_grid():
     blockSize = 20  # Set the size of the grid block
@@ -593,7 +712,7 @@ def draw_circuit():
             if item == 0:
                 continue
 
-            elif item in [1, 2, 3, 4, 5, 6]:
+            elif item in [1, 2, 3, 4, 5, 6, 7]:
                 obj = circuit_objects[i][j]
                 # Check for neighbors
                 up = (i - 1, j)
@@ -840,6 +959,10 @@ def add_battery(*args):
     add_item(5)
 
 
+def add_capacitor():
+    add_item(7)
+
+
 def add_input_node():
     add_item(2)
 
@@ -866,6 +989,9 @@ def add_item(code):
         new_obj = Battery(voltage=15.0)
     elif code == 6:
         new_obj = Resistor(10.0)
+    elif code == 7:
+        new_obj = Capacitor(10.0)
+        capacitors.append(new_obj)
 
     circuit[y][x] = code
     circuit_objects[y][x] = new_obj
@@ -877,6 +1003,7 @@ m.add_command(label="Input Node", underline=1, command=add_input_node)
 m.add_command(label="Output Node", underline=1, command=add_output_node)
 m.add_command(label="Resistor", underline=1, command=add_resistor)
 m.add_command(label="Battery", underline=1, command=add_battery)
+m.add_command(label="Capacitor", underline=1, command=add_capacitor)
 m.add_separator()
 m.add_command(label="Delete", underline=0, command=delete_item)
 
@@ -902,7 +1029,7 @@ def left_click(event):
         return
     old_x, old_y = x, y
     item = int(circuit[x][y])
-    print(item, ti(circuit_objects, (x,y)))
+    print(item, ti(circuit_objects, (x, y)))
     if item == 0:
         circuit[x][y] = 1
         circuit_objects[x][y] = Wire()
@@ -941,6 +1068,14 @@ def left_click(event):
         obj.resistance = gui.resistance
         print(obj)
 
+    elif item == 7:
+        print(ti(circuit_objects, (x, y)).charge)
+        obj = circuit_objects[x][y]
+        capacitance_dialog = gui.CapacitorDialog(root, obj.capacitance)
+        root.wait_window(capacitance_dialog.top)
+        print("capacitance: ", gui.capacitance)
+
+        obj.capacitance = gui.capacitance
     # print("clicked at", x, y)
 
     draw_circuit()
@@ -958,15 +1093,18 @@ def handle_key(event):
         add_input_node()
     elif event.char == "o":
         add_output_node()
-    elif event.char == 't':
+    elif event.char == "t":
         item = ti(circuit_objects, (y, x))
         print(item)
         print("voltage: ", item.voltage)
         print("resistance: ", item.resistance)
         print("current: ", item.current)
+
+
 def reset(event):
     global old_x, old_y
     old_x, old_y = None, None
+
 
 circuit_view.bind("<Key>", key)
 circuit_view.bind("<B1-Motion>", left_click)
@@ -976,9 +1114,9 @@ circuit_view.bind("<Button-3>", right_click)
 
 circuit_view.bind_all("<KeyRelease>", handle_key)
 
-R_tot = 0
+R_eq = 0
 I_tot = 0
-label1 = Label(options_view, text=f"Total Resistance: {R_tot}").grid(row=0, column=0)
+label1 = Label(options_view, text=f"Total Resistance: {R_eq}").grid(row=0, column=0)
 label2 = Label(options_view, text=f"Total Current: {I_tot}").grid(
     row=1, column=0, sticky="w"
 )
@@ -991,7 +1129,7 @@ cw = bool(dir)
 
 def run_circuit():
     # Run circuit and update labels
-    global circuit, circuit_objects
+    global circuit, circuit_objects, R_eq, capacitors
     # Get origin, end, and already_visited
     # end is battery location, origin is 2 away, already visited is 1 away
     for i, row in enumerate(circuit):
@@ -1087,8 +1225,11 @@ def run_circuit():
         if item == 6:
             circuit_objs.append(ti(circuit_objects, step))
 
+        elif item == 7:
+            circuit_objs.append(ti(circuit_objects, step))
+
         # Check for node:
-        if item == 2:
+        elif item == 2:
             previous_item = ti(circuit, paths[0][i])
             # Generate new paths starting at this node:
 
@@ -1129,18 +1270,48 @@ def run_circuit():
     circuit_resistance = sum([x.resistance for x in circuit_objs])
     print("resistance", circuit_resistance)
 
-    R_tot = sum([x.resistance for x in circuit_objs])
+    R_eq = sum([x.resistance for x in circuit_objs])
     V_tot = ti(circuit_objects, end).voltage
-    I_tot = V_tot / R_tot
+    I_tot = V_tot / R_eq
+    c_sum = 0
+    for item in circuit_objs:
+        if item.capacitance != 0:
+            c_sum += 1 / item.capacitance
+    C_eq = 0 if c_sum == 0 else 1 / c_sum
+    print("equivalent capacitance: ", C_eq)
     for item in circuit_objs:
         item.voltage = item.resistance * I_tot
 
     # for item in circuit_objs[0].paths_items:
     #   print(item.resistance, item.current, item.voltage)
+    # We can reduce the circuit such that it only has 1 capacitor of capacitance C_eq and 1 resistor of R_eq
+
+    # Voltage of capacitor is V_tot - V_res = V_tot - R_eq*I_tot
+
+    # V_c = V_tot - R_eq*I_tot
+    V_c = V_tot
+    Q = C_eq * V_c
+
+    # Set each capacitor in series to have a charge of Q
+    for item in circuit_objs:
+        if item.capacitance != 0:
+            item.charge = Q
+            print(item.charge)
+
+    # compute for 10 time constants
+    for cycle in range(10):
+        for capacitor in capacitors:
+            current_time = cycle * capacitor.tau
+            current_charge = capacitor.charge * (1 - math.exp(-cycle))
+            capacitor.times.append(current_time)
+            capacitor.charges.append(current_charge)
+
+    for capacitor in capacitors:
+        plt.plot(capacitor.times, capacitor.charges)
+    plt.show()
 
     print("total_current", I_tot)
-    print(R_tot)
-
+    print(R_eq)
 
 
 run_button = Button(options_view, text="Run", command=run_circuit).grid(row=3, column=0)
@@ -1151,8 +1322,10 @@ def toggle_labels():
     draw_labels ^= True
     draw_circuit()
 
-labels_button = Checkbutton(options_view, text="Hide Labels", command=toggle_labels).grid(row=5, sticky=W)
 
+labels_button = Checkbutton(
+    options_view, text="Hide Labels", command=toggle_labels
+).grid(row=5, sticky=W)
 
 
 clear_button = Button(options_view, text="Clear", command=clear_circuit).grid(

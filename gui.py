@@ -3,6 +3,7 @@ from tkinter import *
 
 voltage = 15.0
 resistance = 10.0
+capacitance = 10.0
 
 
 def validate_float(flt, positive=False):
@@ -49,6 +50,28 @@ class BatteryDialog:
     def send(self):
         global voltage
         voltage = float(self.voltage_box.get())
+        self.top.destroy()
+
+
+class CapacitorDialog:
+    def __init__(self, parent, default):
+        top = self.top = Toplevel(parent)
+        self.capacitance_label = Label(top, text="Capacitance")
+        self.capacitance_label.pack()
+
+        entry = StringVar()
+        entry.set(default)
+        self.capacitance_box = Entry(top, textvariable=entry)
+        self.reg = top.register(validate_resistance)
+        self.capacitance_box.config(validate="key", validatecommand=(self.reg, "%P"))
+        self.capacitance_box.pack()
+
+        self.submit_button = Button(top, text="Submit", command=self.send)
+        self.submit_button.pack()
+
+    def send(self):
+        global capacitance
+        capacitance = float(self.capacitance_box.get())
         self.top.destroy()
 
 
