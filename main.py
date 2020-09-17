@@ -1,9 +1,10 @@
 import gui
 import math
 from tkinter import *
-from tkinter import simpledialog
+import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageTk, ImageOps
+from scipy import interpolate
 
 root = Tk()
 display_width = 1280
@@ -978,6 +979,14 @@ def delete_item():
 def add_item(code):
     global x, y, circuit, circuit_objects
     if code == 0:
+        if ti(circuit, (y, x)) == 7:
+            print(len(capacitors))
+            id = ti(circuit_objects, (y, x)).id
+            for i, capacitor in enumerate(capacitors):
+                if capacitor.id == id:
+                    capacitors.pop(i)
+                    break
+            print(len(capacitors))
         new_obj = 0
     elif code == 1:
         new_obj = Wire()
@@ -1297,7 +1306,9 @@ def run_circuit():
         if item.capacitance != 0:
             item.charge = Q
             print(item.charge)
-
+    for capacitor in capacitors:
+        capacitor.times = []
+        capacitor.charges = []
     # compute for 10 time constants
     for cycle in range(10):
         for capacitor in capacitors:
@@ -1306,8 +1317,15 @@ def run_circuit():
             capacitor.times.append(current_time)
             capacitor.charges.append(current_charge)
 
-    for capacitor in capacitors:
-        plt.plot(capacitor.times, capacitor.charges)
+    fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
+
+    for i, capacitor in enumerate(capacitors):
+
+        x_new = np.linspace(0, capacitor.times[-1], 300)
+        a_BSpline = interpolate.make_interp_spline(capacitor.times, capacitor.charges)
+        y_new = a_BSpline(x_new)
+        ax[i].plot(x_new, y_new)
+
     plt.show()
 
     print("total_current", I_tot)
