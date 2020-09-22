@@ -1083,7 +1083,7 @@ def left_click(event):
         capacitance_dialog = gui.CapacitorDialog(root, obj.capacitance)
         root.wait_window(capacitance_dialog.top)
         print("capacitance: ", gui.capacitance)
-
+        print("charge:", obj.charge)
         obj.capacitance = gui.capacitance
     # print("clicked at", x, y)
 
@@ -1278,17 +1278,19 @@ def run_circuit():
 
     circuit_resistance = sum([x.resistance for x in circuit_objs])
     print("resistance", circuit_resistance)
-
-    R_eq = sum([x.resistance for x in circuit_objs])
+    circuit_objs = CircuitSegment(circuit_objs)
+    #R_eq = sum([x.resistance for x in circuit_objs])
+    R_eq = circuit_objs.resistance
     V_tot = ti(circuit_objects, end).voltage
     I_tot = V_tot / R_eq
-    c_sum = 0
+    """c_sum = 0
     for item in circuit_objs:
         if item.capacitance != 0:
             c_sum += 1 / item.capacitance
-    C_eq = 0 if c_sum == 0 else 1 / c_sum
+    C_eq = 0 if c_sum == 0 else 1 / c_sum"""
+    C_eq = circuit_objs.capacitance
     print("equivalent capacitance: ", C_eq)
-    for item in circuit_objs:
+    for item in circuit_objs.contents:
         item.voltage = item.resistance * I_tot
 
     # for item in circuit_objs[0].paths_items:
@@ -1302,17 +1304,16 @@ def run_circuit():
     Q = C_eq * V_c
 
     # Set each capacitor in series to have a charge of Q
-    for item in circuit_objs:
-        if item.capacitance != 0:
-            item.charge = Q
-            print(item.charge)
+    circuit_objs.charge = Q
     for capacitor in capacitors:
         capacitor.times = []
         capacitor.charges = []
     # compute for 10 time constants
+    print("current_circuit: ", circuit_objs)
+    circuit_tau = R_eq * C_eq
     for cycle in range(10):
+        current_time = cycle * circuit_tau
         for capacitor in capacitors:
-            current_time = cycle * capacitor.tau
             current_charge = capacitor.charge * (1 - math.exp(-cycle))
             capacitor.times.append(current_time)
             capacitor.charges.append(current_charge)
