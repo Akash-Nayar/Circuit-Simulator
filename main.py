@@ -17,10 +17,10 @@ cell_size = 20
 canvas_width = circuit_width * cell_size
 canvas_height = circuit_height * cell_size
 
-circuit_view = Canvas(root, width=canvas_width, height=canvas_height)
+circuit_view = Canvas(root, width=canvas_width, height=canvas_height, highlightthickness=1, highlightbackground="black")
 options_view = Frame(root)
 
-circuit_view.grid(row=0, column=0, sticky="n")
+circuit_view.grid(row=0, column=0, sticky="n",padx=(100, 10))
 options_view.grid(row=0, column=1, sticky="n")
 
 
@@ -667,17 +667,43 @@ class ParallelCell(CircuitItem):
         return sum([segment.capacitance for segment in self.paths_items])
 
 
-def draw_grid():
-    blockSize = 20  # Set the size of the grid block
 
-    for i in range(circuit_width + 1):
-        circuit_view.create_line(
-            cell_size * i, 0, cell_size * i, canvas_height, fill="#B3B3B3"
-        )
-    for j in range(circuit_height + 1):
-        circuit_view.create_line(
-            0, cell_size * j, canvas_width, cell_size * j, fill="#B3B3B3"
-        )
+draw_lines = True
+blockSize = 20  # Set the size of the grid block
+lines = Image.open("images/lines.png")
+print(lines.mode)
+print(lines.size)
+#lines.thumbnail((blockSize*circuit_width+6, blockSize*circuit_height+6), Image.ANTIALIAS)
+lines_img = ImageTk.PhotoImage(lines)
+def draw_grid():
+
+    global draw_lines
+
+
+    if draw_lines:
+        circuit_view.create_image(
+                0, 0,
+                anchor=NW,
+                image=lines_img,
+            )
+        """for i in range(circuit_width + 1):
+            circuit_view.create_line(
+                cell_size * i, 0, cell_size * i, canvas_height, fill="#B3B3B3"
+            )
+        for j in range(circuit_height + 1):
+            circuit_view.create_line(
+                0, cell_size * j, canvas_width, cell_size * j, fill="#B3B3B3"
+            )"""
+
+    else:
+        for i in range(circuit_width + 1):
+
+            for j in range(circuit_height + 1):
+                x = i * blockSize
+                y = j * blockSize
+                circuit_view.create_oval(x-1, y-1, x+1, y+1, fill="#B3B3B3")
+    circuit_view.update()
+    #circuit_view.postscript(file="lines.ps", colormode='color')
 
 
 # GUI
@@ -707,7 +733,7 @@ def draw_circuit():
     global circuit, circuit_objects
     print("----")
     circuit_view.delete(ALL)
-    draw_grid()
+    #draw_grid()
     for i, row in enumerate(circuit):
         for j, item in enumerate([int(x) for x in row]):
             if item == 0:
@@ -936,6 +962,8 @@ def draw_circuit():
 
                 else:
                     obj.draw(i, j, state="cross", direction="any")
+
+    draw_grid()
 
 
 def clear_circuit():
@@ -1334,6 +1362,7 @@ def run_circuit():
 
 
 run_button = Button(options_view, text="Run", command=run_circuit).grid(row=3, column=0)
+
 
 
 def toggle_labels():
