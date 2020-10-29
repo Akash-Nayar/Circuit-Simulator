@@ -20,7 +20,8 @@ canvas_height = circuit_height * cell_size
 circuit_view = Canvas(root, width=canvas_width, height=canvas_height, highlightthickness=1, highlightbackground="black")
 options_view = Frame(root)
 
-circuit_view.grid(row=0, column=0, sticky="n",padx=(100, 10))
+padding = (100, 0)
+circuit_view.grid(row=0, column=0, sticky="n",padx=padding)
 options_view.grid(row=0, column=1, sticky="n")
 
 
@@ -731,7 +732,6 @@ def get_neighbors(arr, possibilities):
 
 def draw_circuit():
     global circuit, circuit_objects
-    print("----")
     circuit_view.delete(ALL)
     #draw_grid()
     for i, row in enumerate(circuit):
@@ -1062,11 +1062,13 @@ username = ""
 def left_click(event):
     global circuit, circuit_objects, old_x, old_y
     x, y = (event.y // 20, event.x // 20)
+
+    print(x, y)
     if old_x == x and old_y == y:
         return
     old_x, old_y = x, y
     item = int(circuit[x][y])
-    print(item, ti(circuit_objects, (x, y)))
+    #print(item, ti(circuit_objects, (x, y)))
     if item == 0:
         circuit[x][y] = 1
         circuit_objects[x][y] = Wire()
@@ -1092,7 +1094,7 @@ def left_click(event):
         obj = circuit_objects[x][y]
         battery_dialog = gui.BatteryDialog(root, obj.voltage)
         root.wait_window(battery_dialog.top)
-        print("voltage: ", gui.voltage)
+        #print("voltage: ", gui.voltage)
 
         obj.voltage = gui.voltage
     # Allow to change resistor
@@ -1100,7 +1102,7 @@ def left_click(event):
         obj = circuit_objects[x][y]
         resistance_dialog = gui.ResistorDialog(root, obj.resistance)
         root.wait_window(resistance_dialog.top)
-        print("voltage: ", gui.resistance)
+        #print("voltage: ", gui.resistance)
 
         obj.resistance = gui.resistance
         print(obj)
@@ -1110,8 +1112,8 @@ def left_click(event):
         obj = circuit_objects[x][y]
         capacitance_dialog = gui.CapacitorDialog(root, obj.capacitance)
         root.wait_window(capacitance_dialog.top)
-        print("capacitance: ", gui.capacitance)
-        print("charge:", obj.charge)
+        #print("capacitance: ", gui.capacitance)
+        #print("charge:", obj.charge)
         obj.capacitance = gui.capacitance
     # print("clicked at", x, y)
 
@@ -1121,7 +1123,11 @@ def left_click(event):
 # draw the grid
 def handle_key(event):
     global circuit_objects, x, y
-    x, y = (event.x // 20, event.y // 20)
+    x, y = ((event.x-padding[0]) // 20, (event.y+padding[1]) // 20)
+
+    #take care of inconsitencies with mouse position
+    #x, y = (circuit_view.winfo_pointerx() // 20, circuit_view.winfo_pointery() // 20)
+    print(x, y)
     if event.char == "r":
         add_resistor()
     elif event.char == "b":
@@ -1346,16 +1352,17 @@ def run_circuit():
             capacitor.times.append(current_time)
             capacitor.charges.append(current_charge)
 
-    fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
+    if len(capacitors) >0:
+        fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
 
-    for i, capacitor in enumerate(capacitors):
+        for i, capacitor in enumerate(capacitors):
 
-        x_new = np.linspace(0, capacitor.times[-1], 300)
-        a_BSpline = interpolate.make_interp_spline(capacitor.times, capacitor.charges)
-        y_new = a_BSpline(x_new)
-        ax[i].plot(x_new, y_new)
+            x_new = np.linspace(0, capacitor.times[-1], 300)
+            a_BSpline = interpolate.make_interp_spline(capacitor.times, capacitor.charges)
+            y_new = a_BSpline(x_new)
+            ax[i].plot(x_new, y_new)
 
-    plt.show()
+        plt.show()
 
     print("total_current", I_tot)
     print(R_eq)
