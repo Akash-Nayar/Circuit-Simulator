@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageTk, ImageOps
 from scipy import interpolate
+import numpy as np
 
 
 # Colors
@@ -18,6 +19,10 @@ color2 = "#BBBBBB"
 
 root = Tk()
 root.title("Circuit Simulator")
+root.resizable(False, False)
+
+
+
 style = ttk.Style(root)
 
 root.tk.eval("""
@@ -32,12 +37,18 @@ root.tk.eval("""
     # ... (you can add the other themes from the package if you want
     """)
 root.tk.call("package", "require", 'awdark')
+root.tk.call("package", "require", 'awdark')
 root.tk.call("package", "require", 'awlight')
 print(style.theme_names())
-style.theme_use('awlight')
-style.configure("awlight", background=color2, accentcolor=color1)
-root.configure(bg=style.lookup('TFrame', 'background'))
+style_str = 'awdark'
+if style_str == 'awdark':
+    dark_mode = True
+else:
+    dark_mode = False
+style.theme_use(style_str)
 
+root.configure(bg=style.lookup('TFrame', 'background'))
+style.theme_use('awlight')
 display_width = 1280
 display_height = 720
 
@@ -51,23 +62,55 @@ canvas_height = circuit_height * cell_size
 
 bg_color = color2
 bg_widget_color = color1
-circuit_view = Canvas(root, width=canvas_width, height=canvas_height,
-                      highlightthickness=1, highlightbackground="black")
-options_view = ttk.Frame(root)
+
+tab_control = ttk.Notebook(root)
+
+creator = ttk.Frame(tab_control)
+observer = ttk.Frame(tab_control)
+"""
+resistor_canvas = Canvas(observer)
+resistor_scrollbar = ttk.Scrollbar(observer, orient="horizontal", command=resistor_canvas.xview)
+resistor_frame = ttk.Frame(resistor_canvas)
+resistor_frame.bind(
+    "<Configure>",
+    lambda e: resistor_canvas.configure(
+        scrollregion=resistor_canvas.bbox("all")
+    )
+)
+resistor_canvas.create_window((0, 0), window=resistor_frame, anchor="nw")
+resistor_canvas.configure(yscrollcommand=resistor_scrollbar.set)
+
+for i in range(50):
+    ttk.Label(resistor_frame, text="Sample scrolling label").grid(row=0, column=i)
+resistor_canvas.grid(row=0, column=0)
+resistor_scrollbar.grid(row=1, column=0)
+"""
+padding = (10, 10)
+tab_control.add(creator, text ='Creator')
+tab_control.add(observer, text ='Observer')
+tab_control.grid(row=0, column=0)
+circuit_view_frame = ttk.LabelFrame(creator, text='Circuit Board')
+circuit_view_frame.grid(row=0, column=0, sticky="n",
+                  padx=padding[0], pady=padding[1])
+circuit_view = Canvas(circuit_view_frame, width=canvas_width, height=canvas_height,
+                      highlightthickness=1, background='gray10' if dark_mode else None, highlightbackground="black")
+
+options_view = ttk.Frame(creator)
 root.option_add("*Font", "Calibri")
 
 # the root window was already created, so we
 # have to update it ourselves
 
-padding = (10, 10)
+
 circuit_view.grid(row=0, column=0, sticky="n",
                   padx=padding[0], pady=padding[1])
 options_view.grid(row=0, column=1, sticky="n",
-                  padx=(0, padding[0]), pady=padding[1])
+                  padx=(0, padding[0]))
 
 
 circuit = [[0] * circuit_width for _ in range(circuit_height)]
 circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
+circuit_objects_list = []
 
 capacitors = []
 
@@ -173,46 +216,74 @@ def get_path(position, curr_path, visited, end_point):
 
 
 # images:
+
+def convert_color(im, old_c, new_c):
+    im = im.convert('RGBA')
+
+    data = np.array(im)  # "data" is a height x width x 4 numpy array
+    red, green, blue, alpha = data.T  # Temporarily unpack the bands for readability
+
+    # Replace white with red... (leaves alpha values alone...)
+    white_areas = (red == old_c[0]) & (blue == old_c[1]) & (green == old_c[2])
+    data[..., :-1][white_areas.T] = new_c  # Transpose back needed
+
+    im2 = Image.fromarray(data)
+    return im2
+
+new_color = (255, 255, 255)
+old_color = (0, 0, 0)
+
+# images:
 cursor_img = ImageTk.PhotoImage(Image.open(
     "images/cursor.png").resize((cell_size, cell_size), Image.ANTIALIAS))
-delete_img = ImageTk.PhotoImage(Image.open(
-    "images/x.png").resize((cell_size, cell_size), Image.ANTIALIAS))
+
+delete_img = Image.open("images/x.png").resize((cell_size, cell_size), Image.ANTIALIAS)
+delete_img = delete_img if not dark_mode else convert_color(delete_img, old_color, new_color)
+delete_img = ImageTk.PhotoImage(delete_img)
 
 
-wire_straight_img = Image.open("images/wire_straight.png")
+
+wire_straight_img = Image.open(f"images/wire_straight.png")
+wire_straight_img = wire_straight_img if not dark_mode else convert_color(wire_straight_img, old_color, new_color)
 wire_straight_imgs = {
     "horizontal": ImageTk.PhotoImage(wire_straight_img),
     "vertical": ImageTk.PhotoImage(wire_straight_img.rotate(90)),
 }
 
-wire_corner_img = Image.open("images/wire_corner.png")
+wire_corner_img = Image.open(f"images/wire_corner.png")
+wire_corner_img = wire_corner_img if not dark_mode else convert_color(wire_corner_img, old_color, new_color)
 wire_corner_imgs = {
     "right_down": ImageTk.PhotoImage(wire_corner_img),
     "down_left": ImageTk.PhotoImage(wire_corner_img.rotate(90)),
     "left_up": ImageTk.PhotoImage(wire_corner_img.rotate(180)),
     "up_right": ImageTk.PhotoImage(wire_corner_img.rotate(270)),
 }
-wire_junction_img = Image.open("images/wire_junction.png")
+wire_junction_img = Image.open(f"images/wire_junction.png")
+wire_junction_img = wire_junction_img if not dark_mode else convert_color(wire_junction_img, old_color, new_color)
 wire_junction_imgs = {
     "up": ImageTk.PhotoImage(wire_junction_img),
     "left": ImageTk.PhotoImage(wire_junction_img.rotate(90)),
     "down": ImageTk.PhotoImage(wire_junction_img.rotate(180)),
     "right": ImageTk.PhotoImage(wire_junction_img.rotate(270)),
 }
-wire_cross_img = Image.open("images/wire_cross.png")
+wire_cross_img = Image.open(f"images/wire_cross.png")
+wire_cross_img = wire_cross_img if not dark_mode else convert_color(wire_cross_img, old_color, new_color)
 wire_cross_imgs = {"any": ImageTk.PhotoImage(wire_cross_img)}
 
-input_node_junction_img = Image.open("images/input_node_junction.png")
+input_node_junction_img = Image.open(f"images/input_node_junction.png")
+input_node_junction_img = input_node_junction_img if not dark_mode else convert_color(input_node_junction_img, old_color, new_color)
 input_node_junction_imgs = {
     "up": ImageTk.PhotoImage(input_node_junction_img),
     "left": ImageTk.PhotoImage(input_node_junction_img.rotate(90)),
     "down": ImageTk.PhotoImage(input_node_junction_img.rotate(180)),
     "right": ImageTk.PhotoImage(input_node_junction_img.rotate(270)),
 }
-input_node_cross_img = Image.open("images/input_node_cross.png")
+input_node_cross_img = Image.open(f"images/input_node_cross.png")
+input_node_cross_img = input_node_cross_img if not dark_mode else convert_color(input_node_cross_img, old_color, new_color)
 input_node_cross_imgs = {"any": ImageTk.PhotoImage(input_node_cross_img)}
 
-output_node_corner_left_img = Image.open("images/output_node_corner.png")
+output_node_corner_left_img = Image.open(f"images/output_node_corner.png")
+output_node_corner_left_img = output_node_corner_left_img if not dark_mode else convert_color(output_node_corner_left_img, old_color, new_color)
 output_node_corner_left_imgs = {
     "down": ImageTk.PhotoImage(output_node_corner_left_img),
     "right": ImageTk.PhotoImage(output_node_corner_left_img.rotate(90)),
@@ -221,6 +292,7 @@ output_node_corner_left_imgs = {
 }
 
 output_node_corner_right_img = ImageOps.mirror(output_node_corner_left_img)
+output_node_corner_right_img = output_node_corner_right_img if not dark_mode else convert_color(output_node_corner_right_img, old_color, new_color)
 output_node_corner_right_imgs = {
     "down": ImageTk.PhotoImage(output_node_corner_right_img),
     "right": ImageTk.PhotoImage(output_node_corner_right_img.rotate(90)),
@@ -229,14 +301,16 @@ output_node_corner_right_imgs = {
 }
 
 
-output_node_junction_img = Image.open("images/output_node_junction.png")
+output_node_junction_img = Image.open(f"images/output_node_junction.png")
+output_node_junction_img = output_node_junction_img if not dark_mode else convert_color(output_node_junction_img, old_color, new_color)
 output_node_junction_imgs = {
     "down": ImageTk.PhotoImage(output_node_junction_img),
     "right": ImageTk.PhotoImage(output_node_junction_img.rotate(90)),
     "up": ImageTk.PhotoImage(output_node_junction_img.rotate(180)),
     "left": ImageTk.PhotoImage(output_node_junction_img.rotate(270)),
 }
-output_node_cross_img = Image.open("images/output_node_cross.png")
+output_node_cross_img = Image.open(f"images/output_node_cross.png")
+output_node_cross_img = output_node_cross_img if not dark_mode else convert_color(output_node_cross_img, old_color, new_color)
 output_node_cross_imgs = {
     "down": ImageTk.PhotoImage(output_node_cross_img),
     "right": ImageTk.PhotoImage(output_node_cross_img.rotate(90)),
@@ -245,13 +319,15 @@ output_node_cross_imgs = {
 }
 
 
-resistor_img = Image.open("images/resistor.png")
+resistor_img = Image.open(f"images/resistor.png")
+resistor_img = resistor_img if not dark_mode else convert_color(resistor_img, old_color, new_color)
 resistor_imgs = {
     "horizontal": ImageTk.PhotoImage(resistor_img),
     "vertical": ImageTk.PhotoImage(resistor_img.rotate(90)),
 }
 
-battery_img = Image.open("images/battery.png")
+battery_img = Image.open(f"images/battery.png")
+battery_img = battery_img if not dark_mode else convert_color(battery_img, old_color, new_color)
 battery_imgs = {
     "right": ImageTk.PhotoImage(battery_img),
     "down": ImageTk.PhotoImage(battery_img.rotate(90)),
@@ -259,7 +335,8 @@ battery_imgs = {
     "up": ImageTk.PhotoImage(battery_img.rotate(270)),
 }
 
-capacitor_img = Image.open("images/capacitor.png")
+capacitor_img = Image.open(f"images/capacitor.png")
+capacitor_img = capacitor_img if not dark_mode else convert_color(capacitor_img, old_color, new_color)
 capacitor_imgs = {
     "horizontal": ImageTk.PhotoImage(capacitor_img),
     "vertical": ImageTk.PhotoImage(capacitor_img.rotate(90)),
@@ -270,6 +347,7 @@ class CircuitItem:
     imgs = {}
     default_state = None
     default_direction = None
+    uid = 1
 
     def __init__(self, voltage=0, resistance=0, current=0, capacitance=0, charge=0):
         self._voltage = voltage
@@ -278,6 +356,8 @@ class CircuitItem:
         self._capacitance = capacitance
         self._charge = charge
         self.flipped = False
+        self.uid = CircuitItem.uid
+        CircuitItem.uid += 1
 
     @property
     def voltage(self):
@@ -484,7 +564,8 @@ class Resistor(CircuitItem):
                     j * 20 + 10,
                     i * 20 - multiplier*10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
-                    angle=angle_offset
+                    angle=angle_offset,
+                    fill='white'
                 )
             else:
                 circuit_view.create_text(
@@ -492,6 +573,7 @@ class Resistor(CircuitItem):
                     i * 20 + 10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
                     angle=angle_offset+90,
+                    fill='white'
                 )
 
         try:
@@ -526,7 +608,8 @@ class Battery(CircuitItem):
                     j * 20 + 10,
                     i * 20 - multiplier * 10,
                     text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
-                    angle=angle_offset
+                    angle=angle_offset,
+                    fill='white'
                 )
             else:
                 circuit_view.create_text(
@@ -534,6 +617,7 @@ class Battery(CircuitItem):
                     i * 20 + 10,
                     text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
                     angle=angle_offset+90,
+                    fill='white'
                 )
 
         try:
@@ -588,7 +672,8 @@ class Capacitor(CircuitItem):
                     j * 20 + 10,
                     i * 20 - multiplier * 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
-                    angle=angle_offset
+                    angle=angle_offset,
+                    fill='white'
                 )
             else:
                 circuit_view.create_text(
@@ -596,6 +681,7 @@ class Capacitor(CircuitItem):
                     i * 20 + 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
                     angle=angle_offset+90,
+                    fill='white'
                 )
 
         try:
@@ -864,7 +950,11 @@ class ResistorDialog:
 
 draw_lines = True
 blockSize = 20  # Set the size of the grid block
-lines = Image.open("images/lines.png")
+lines_original = Image.open("images/lines.png")
+if dark_mode:
+    lines = convert_color(lines_original, (128, 128, 128), (64, 64, 64))
+else:
+    lines = lines_original
 print(lines.mode)
 print(lines.size)
 #lines.thumbnail((blockSize*circuit_width+6, blockSize*circuit_height+6), Image.ANTIALIAS)
@@ -876,12 +966,12 @@ def draw_grid():
     global draw_lines
 
     if draw_lines:
-        circuit_view.create_image(
+        im = circuit_view.create_image(
             0, 0,
             anchor=NW,
             image=lines_img,
         )
-
+        circuit_view.tag_lower(im)
     else:
         for i in range(circuit_width + 1):
 
@@ -919,7 +1009,10 @@ def get_neighbors(arr, possibilities):
 def draw_circuit():
     global circuit, circuit_objects
     circuit_view.delete(ALL)
-    # draw_grid()
+
+    print("num elements: ",len(circuit_objects_list))
+    #draw_grid()
+
     for i, row in enumerate(circuit):
         for j, item in enumerate([int(x) for x in row]):
             if item == 0:
@@ -1152,10 +1245,12 @@ def draw_circuit():
 
 
 def clear_circuit():
-    global circuit, circuit_objects, capacitors
+    global circuit, circuit_objects, circuit_objects_list, capacitors
     circuit = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
+    circuit_objects_list = []
     capacitors = []
+
     draw_circuit()
 
 
@@ -1191,14 +1286,17 @@ def add_output_node():
 
 
 def delete_item():
-    add_item(4)
+    add_item(0)
 
 
 def add_item(code):
-    global x, y, circuit, circuit_objects
+    global x, y, circuit, circuit_objects, circuit_objects_list
     print(x, y)
     if code == 0:
-        if ti(circuit, (y, x)) == 7:
+        item = ti(circuit, (y, x))
+        if item == 0:
+            return
+        if item == 7:
             print(len(capacitors))
             id = ti(circuit_objects, (y, x)).id
             for i, capacitor in enumerate(capacitors):
@@ -1206,6 +1304,13 @@ def add_item(code):
                     capacitors.pop(i)
                     break
             print(len(capacitors))
+        # remove from circuit obejects list
+        obj = ti(circuit_objects, (y, x))
+        for i, item in enumerate(circuit_objects_list):
+            if item.uid == obj.uid:
+                circuit_objects_list.pop(i)
+                break
+
         new_obj = 0
     elif code == 1:
         new_obj = Wire()
@@ -1223,6 +1328,8 @@ def add_item(code):
 
     circuit[y][x] = code
     circuit_objects[y][x] = new_obj
+    if new_obj != 0:
+        circuit_objects_list.append(new_obj)
     draw_circuit()
 
 
@@ -1428,19 +1535,19 @@ pointer_button = ttk.Button(builder, image=delete_img, command=select_delete).gr
 
 # row 2
 wire_button = ttk.Button(builder, image=wire_straight_imgs['horizontal'], command=select_wire).grid(
-    row=1, column=0, padx=builder_button_padding[0], pady=builder_button_padding[1])
+    row=1, column=0, padx=builder_button_padding[0], pady=(0, builder_button_padding[1]))
 input_node_button = ttk.Button(builder, image=input_node_junction_imgs['right'], command=select_input_node).grid(
-    row=1, column=1, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+    row=1, column=1, padx=(0, builder_button_padding[0]), pady=(0, builder_button_padding[1]))
 output_node_button = ttk.Button(builder, image=output_node_cross_imgs['right'], command=select_output_node).grid(
-    row=1, column=2, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+    row=1, column=2, padx=(0, builder_button_padding[0]), pady=(0, builder_button_padding[1]))
 
 # row 3
 battery_button = wire_button = ttk.Button(builder, image=battery_imgs['left'], command=select_battery).grid(
-    row=2, column=0, padx=builder_button_padding[0], pady=builder_button_padding[1])
+    row=2, column=0, padx=builder_button_padding[0], pady=(0, builder_button_padding[1]))
 resistor_button = wire_button = ttk.Button(builder, image=resistor_imgs['horizontal'], command=select_resistor).grid(
-    row=2, column=1, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+    row=2, column=1, padx=(0, builder_button_padding[0]), pady=(0, builder_button_padding[1]))
 capacitor_button = wire_button = ttk.Button(builder, image=capacitor_imgs['horizontal'], command=select_capacitor).grid(
-    row=2, column=2, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+    row=2, column=2, padx=(0, builder_button_padding[0]), pady=(0, builder_button_padding[1]))
 
 labelframe = ttk.LabelFrame(options_view, text="This is a LabelFrame").grid(
     row=3, column=0, sticky='w')
@@ -1452,7 +1559,8 @@ cw = bool(dir)
 
 def run_circuit():
     # Run circuit and update labels
-    global circuit, circuit_objects, R_eq, capacitors
+    global circuit, circuit_objects, circuit_objects_list, R_eq, capacitors, style
+    style.theme_use(style_str)
     # Get origin, end, and already_visited
     # end is battery location, origin is 2 away, already visited is 1 away
     for i, row in enumerate(circuit):
@@ -1593,11 +1701,6 @@ def run_circuit():
     R_eq = circuit_objs.resistance
     V_tot = ti(circuit_objects, end).voltage
     I_tot = V_tot / R_eq
-    """c_sum = 0
-    for item in circuit_objs:
-        if item.capacitance != 0:
-            c_sum += 1 / item.capacitance
-    C_eq = 0 if c_sum == 0 else 1 / c_sum"""
     C_eq = circuit_objs.capacitance
     print("equivalent capacitance: ", C_eq)
     for item in circuit_objs.contents:
@@ -1626,6 +1729,9 @@ def run_circuit():
             capacitor.times.append(current_time)
             capacitor.charges.append(current_charge)
 
+
+
+
     if len(capacitors) > 0:
         fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
 
@@ -1640,6 +1746,34 @@ def run_circuit():
             except TypeError:
                 ax.plot(x_new, y_new)
         plt.show()
+
+
+    #EXPERIMENTAL
+    things = {'wire':[], 'input':[], 'output':[], 'resistor':[], 'battery':[], 'capacitor':[]}
+    for item in circuit_objects_list:
+        if isinstance(item, Wire):
+            things['wire'].append(item)
+
+        elif isinstance(item, InputNode):
+            things['input'].append(item)
+
+        elif isinstance(item, OutputNode):
+            things['output'].append(item)
+
+        elif isinstance(item, Resistor):
+            things['resistor'].append(item)
+
+        elif isinstance(item, Battery):
+            things['battery'].append(item)
+
+        elif isinstance(item, Capacitor):
+            things['capacitor'].append(item)
+
+    print(things)
+
+
+
+
 
     print("total_current", I_tot)
     print(R_eq)
