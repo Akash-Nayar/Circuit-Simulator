@@ -1,12 +1,43 @@
 import gui
 import math
 from tkinter import *
+from tkinter.font import Font
+from tkinter import ttk
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageTk, ImageOps
 from scipy import interpolate
 
+
+# Colors
+color1 = "#F7F7F8"
+color2 = "#E2E2E1"
+color1 = "#AAAAAA"
+color2 = "#BBBBBB"
+
+
 root = Tk()
+root.title("Circuit Simulator")
+style = ttk.Style(root)
+
+root.tk.eval("""
+    set base_theme_dir awthemes-9.5.0/
+
+    package ifneeded awthemes 9.5.0 \
+        [list source [file join $base_theme_dir awthemes.tcl]]
+    package ifneeded colorutils 4.8 \
+        [list source [file join $base_theme_dir colorutils.tcl]]
+    package ifneeded awdark 7.9 \
+        [list source [file join $base_theme_dir awdark.tcl]]
+    # ... (you can add the other themes from the package if you want
+    """)
+root.tk.call("package", "require", 'awdark')
+root.tk.call("package", "require", 'awlight')
+print(style.theme_names())
+style.theme_use('awlight')
+style.configure("awlight", background=color2, accentcolor=color1)
+root.configure(bg=style.lookup('TFrame', 'background'))
+
 display_width = 1280
 display_height = 720
 
@@ -17,13 +48,22 @@ cell_size = 20
 canvas_width = circuit_width * cell_size
 canvas_height = circuit_height * cell_size
 
+
+bg_color = color2
+bg_widget_color = color1
 circuit_view = Canvas(root, width=canvas_width, height=canvas_height,
                       highlightthickness=1, highlightbackground="black")
-options_view = Frame(root)
+options_view = ttk.Frame(root)
+root.option_add("*Font", "Calibri")
 
-padding = (100, 0)
-circuit_view.grid(row=0, column=0, sticky="n", padx=padding)
-options_view.grid(row=0, column=1, sticky="n")
+# the root window was already created, so we
+# have to update it ourselves
+
+padding = (10, 10)
+circuit_view.grid(row=0, column=0, sticky="n",
+                  padx=padding[0], pady=padding[1])
+options_view.grid(row=0, column=1, sticky="n",
+                  padx=(0, padding[0]), pady=padding[1])
 
 
 circuit = [[0] * circuit_width for _ in range(circuit_height)]
@@ -133,6 +173,12 @@ def get_path(position, curr_path, visited, end_point):
 
 
 # images:
+cursor_img = ImageTk.PhotoImage(Image.open(
+    "images/cursor.png").resize((cell_size, cell_size), Image.ANTIALIAS))
+delete_img = ImageTk.PhotoImage(Image.open(
+    "images/x.png").resize((cell_size, cell_size), Image.ANTIALIAS))
+
+
 wire_straight_img = Image.open("images/wire_straight.png")
 wire_straight_imgs = {
     "horizontal": ImageTk.PhotoImage(wire_straight_img),
@@ -694,6 +740,128 @@ class ParallelCell(CircuitItem):
         return sum([segment.capacitance for segment in self.paths_items])
 
 
+voltage = 15.0
+resistance = 10.0
+capacitance = 10.0
+flip = False
+
+
+def validate_float(flt, positive=False):
+
+    if not positive:
+        try:
+            if flt[0] == "-":
+                flt = flt[1:]
+        except IndexError:
+            pass
+    if flt == "":
+        return True
+    try:
+        float(flt)
+        return True
+    except ValueError:
+        return False
+
+
+def validate_voltage(flt):
+    return validate_float(flt)
+
+
+def validate_resistance(flt):
+    return validate_float(flt, positive=True)
+
+
+class BatteryDialog:
+    def __init__(self, parent, default, flip_default, x, y):
+        self.top = Toplevel(parent)
+        self.voltage_label = Label(self.top, text="Voltage")
+        self.voltage_label.pack()
+
+        entry = StringVar()
+        entry.set(default)
+        self.voltage_box = Entry(self.top, textvariable=entry)
+        self.reg = self.top.register(validate_voltage)
+        self.voltage_box.config(
+            validate="key", validatecommand=(self.reg, "%P"))
+        self.voltage_box.pack()
+        self.flip = IntVar(value=int(flip_default))
+        self.flip_check = Checkbutton(
+            self.top, text="Flip label", variable=self.flip)
+        self.flip_check.pack()
+
+        self.submit_button = Button(self.top, text="Submit", command=self.send)
+        self.submit_button.pack()
+        self.top.update()
+        w, h = self.top.winfo_width(), self.top.winfo_height()
+        self.top.geometry(f"+{x + 20}+{y - int(h / 2)}")
+
+    def send(self):
+        global voltage, flip
+        voltage = float(self.voltage_box.get())
+        flip = bool(self.flip.get())
+        self.top.destroy()
+
+
+class CapacitorDialog:
+    def __init__(self, parent, default, flip_default, x, y):
+        self.top = Toplevel(parent)
+        self.capacitance_label = Label(self.top, text="Capacitance")
+        self.capacitance_label.pack()
+
+        entry = StringVar()
+        entry.set(default)
+        self.capacitance_box = Entry(self.top, textvariable=entry)
+        self.reg = self.top.register(validate_resistance)
+        self.capacitance_box.config(
+            validate="key", validatecommand=(self.reg, "%P"))
+        self.capacitance_box.pack()
+        self.flip = IntVar(value=int(flip_default))
+        self.flip_check = Checkbutton(
+            self.top, text="Flip label", variable=self.flip)
+        self.flip_check.pack()
+        self.submit_button = Button(self.top, text="Submit", command=self.send)
+        self.submit_button.pack()
+        self.top.update()
+        w, h = self.top.winfo_width(), self.top.winfo_height()
+        self.top.geometry(f"+{x + 20}+{y - int(h / 2)}")
+
+    def send(self):
+        global capacitance, flip
+        capacitance = float(self.capacitance_box.get())
+        flip = bool(self.flip.get())
+        self.top.destroy()
+
+
+class ResistorDialog:
+    def __init__(self, parent, default, flip_default, x, y):
+        self.top = Toplevel(parent)
+        self.resistance_label = Label(self.top, text="Resistance")
+        self.resistance_label.pack()
+        entry = StringVar()
+        entry.set(default)
+        self.resistance_box = Entry(self.top, textvariable=entry)
+        self.reg = self.top.register(validate_resistance)
+        self.resistance_box.config(
+            validate="key", validatecommand=(self.reg, "%P"))
+        self.resistance_box.pack()
+        self.flip = IntVar(value=int(flip_default))
+        self.flip_check = Checkbutton(
+            self.top, text="Flip label", variable=self.flip)
+        self.flip_check.pack()
+
+        self.submit_button = Button(self.top, text="Submit", command=self.send)
+        self.submit_button.pack()
+        self.top.update()
+        w, h = self.top.winfo_width(), self.top.winfo_height()
+        self.top.geometry(f"+{x + 20}+{y - int(h / 2)}")
+
+    def send(self):
+        global resistance, flip
+        resistance = float(self.resistance_box.get())
+        flip = bool(self.flip.get())
+        self.top.destroy()
+
+
 draw_lines = True
 blockSize = 20  # Set the size of the grid block
 lines = Image.open("images/lines.png")
@@ -998,6 +1166,10 @@ def key(event):
 x, y = (0, 0)
 
 
+def add_wire():
+    add_item(1)
+
+
 def add_resistor():
     add_item(6)
 
@@ -1019,11 +1191,12 @@ def add_output_node():
 
 
 def delete_item():
-    add_item(0)
+    add_item(4)
 
 
 def add_item(code):
     global x, y, circuit, circuit_objects
+    print(x, y)
     if code == 0:
         if ti(circuit, (y, x)) == 7:
             print(len(capacitors))
@@ -1065,7 +1238,6 @@ m.add_command(label="Delete", underline=0, command=delete_item)
 
 def right_click(event):
     global x, y
-    x, y = (event.x // 20, event.y // 20)
     try:
         m.post(event.x_root, event.y_root)
     finally:
@@ -1076,66 +1248,69 @@ old_x, old_y = None, None
 
 username = ""
 
+mode = 0
+
 
 def left_click(event):
-    global circuit, circuit_objects, old_x, old_y
-    x, y = (event.y // 20, event.x // 20)
+    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode
+    x, y = (event.x // 20, event.y // 20)
 
-    print(x, y)
     if old_x == x and old_y == y:
         return
     old_x, old_y = x, y
-    item = int(circuit[x][y])
+    item = int(circuit[y][x])
     #print(item, ti(circuit_objects, (x, y)))
-    if item == 0:
-        circuit[x][y] = 1
-        circuit_objects[x][y] = Wire()
-    elif item == 3:
-        real_item = circuit[x][y]
-        if real_item == 3.0:
-            circuit_objects[x][y] = OutputNode(0.5)
-            circuit[x][y] = 3.5
-        elif real_item == 3.5:
-            circuit_objects[x][y] = OutputNode(0.25)
-            circuit[x][y] = 3.25
-        elif real_item == 3.25:
-            circuit_objects[x][y] = OutputNode(0.75)
-            circuit[x][y] = 3.75
-        else:
-            circuit_objects[x][y] = OutputNode(0.0)
-            circuit[x][y] = 3.0
 
-    # Allow to change battery voltage:
-    elif item == 5:
-        obj = circuit_objects[x][y]
-        battery_dialog = gui.BatteryDialog(
-            root, obj.voltage, obj.flipped, event.x_root, event.y_root)
-        root.wait_window(battery_dialog.top)
-        #print("voltage: ", gui.voltage)
-        obj.flipped = gui.flip
-        obj.voltage = gui.voltage
-    # Allow to change resistor
-    elif item == 6:
-        obj = circuit_objects[x][y]
-        resistance_dialog = gui.ResistorDialog(
-            root, obj.resistance, obj.flipped, event.x_root, event.y_root)
-        root.wait_window(resistance_dialog.top)
-        #print("voltage: ", gui.resistance)
-        obj.flipped = gui.flip
-        obj.resistance = gui.resistance
-        print(obj)
+    # If mode is 0, select tool
+    if mode == 0:
+        if item == 3:
+            real_item = circuit[y][x]
+            if real_item == 3.0:
+                circuit_objects[y][x] = OutputNode(0.5)
+                circuit[y][x] = 3.5
+            elif real_item == 3.5:
+                circuit_objects[y][x] = OutputNode(0.25)
+                circuit[y][x] = 3.25
+            elif real_item == 3.25:
+                circuit_objects[y][x] = OutputNode(0.75)
+                circuit[y][x] = 3.75
+            else:
+                circuit_objects[y][x] = OutputNode(0.0)
+                circuit[y][x] = 3.0
 
-    elif item == 7:
-        print(ti(circuit_objects, (x, y)).charge)
-        obj = circuit_objects[x][y]
-        capacitance_dialog = gui.CapacitorDialog(
-            root, obj.capacitance, obj.flipped, event.x_root, event.y_root)
-        root.wait_window(capacitance_dialog.top)
-        #print("capacitance: ", gui.capacitance)
-        #print("charge:", obj.charge)
-        obj.flipped = gui.flip
-        obj.capacitance = gui.capacitance
-    # print("clicked at", x, y)
+        # Allow to change battery voltage:
+        elif item == 5:
+            obj = circuit_objects[y][x]
+            battery_dialog = BatteryDialog(
+                root, obj.voltage, obj.flipped, event.x_root, event.y_root)
+            root.wait_window(battery_dialog.top)
+            #print("voltage: ", gui.voltage)
+            obj.flipped = flip
+            obj.voltage = voltage
+        # Allow to change resistor
+        elif item == 6:
+            obj = circuit_objects[y][x]
+            resistance_dialog = ResistorDialog(
+                root, obj.resistance, obj.flipped, event.x_root, event.y_root)
+            root.wait_window(resistance_dialog.top)
+            #print("voltage: ", gui.resistance)
+            obj.flipped = flip
+            obj.resistance = resistance
+            print(obj)
+
+        elif item == 7:
+            print(ti(circuit_objects, (y, x)).charge)
+            obj = circuit_objects[y][x]
+            capacitance_dialog = CapacitorDialog(
+                root, obj.capacitance, obj.flipped, event.x_root, event.y_root)
+            root.wait_window(capacitance_dialog.top)
+            #print("capacitance: ", gui.capacitance)
+            #print("charge:", obj.charge)
+            obj.flipped = flip
+            obj.capacitance = capacitance
+        # print("clicked at", x, y)
+    else:
+        add_item(mode if mode != 4 else 0)
 
     draw_circuit()
 
@@ -1143,7 +1318,9 @@ def left_click(event):
 # draw the grid
 def handle_key(event):
     global circuit_objects, x, y
-    x, y = ((event.x-padding[0]) // 20, (event.y+padding[1]) // 20)
+    print(event.x, event.y)
+    print(event.x_root, event.y_root)
+    #x, y = (event.x // 20, event.y // 20)
 
     # take care of inconsitencies with mouse position
     #x, y = (circuit_view.winfo_pointerx() // 20, circuit_view.winfo_pointery() // 20)
@@ -1171,6 +1348,53 @@ def reset(event):
     old_x, old_y = None, None
 
 
+def select_wire():
+    global mode
+    mode = 1
+
+
+def select_input_node():
+    global mode
+    mode = 2
+
+
+def select_output_node():
+    global mode
+    mode = 3
+
+
+def select_resistor():
+    global mode
+    mode = 6
+
+
+def select_battery():
+    global mode
+    mode = 5
+
+
+def select_capacitor():
+    global mode
+    mode = 7
+
+
+def select_none():
+    global mode
+    mode = 0
+
+
+def select_delete():
+    global mode
+    mode = 4
+
+
+def update_pos(event):
+    global label2, x, y
+    x = event.x // 20
+    y = event.y // 20
+
+
+circuit_view.bind("<Motion>", update_pos)
 circuit_view.bind("<Key>", key)
 circuit_view.bind("<B1-Motion>", left_click)
 circuit_view.bind("<Button-1>", left_click)
@@ -1179,14 +1403,47 @@ circuit_view.bind("<Button-3>", right_click)
 
 circuit_view.bind_all("<KeyRelease>", handle_key)
 
+
 R_eq = 0
 I_tot = 0
-label1 = Label(options_view, text=f"Total Resistance: {R_eq}").grid(
+overview = ttk.LabelFrame(options_view, text="Overview")
+overview.grid(row=0, column=0, pady=padding[1])
+label1 = ttk.Label(overview, text=f"Total Resistance: {R_eq}").grid(
     row=0, column=0)
-label2 = Label(options_view, text=f"Total Current: {I_tot}").grid(
+label2 = ttk.Label(overview, text=f"Total Current: {I_tot}")
+label2.grid(
     row=1, column=0, sticky="w"
 )
-label3 = Label(options_view, text="Y").grid(row=2, column=0, sticky="w")
+
+
+builder_button_padding = (5, 5)
+builder = ttk.LabelFrame(options_view, text="Builder")
+builder.grid(row=1, column=0, pady=(0, padding[1]))
+
+# row 1
+pointer_button = ttk.Button(builder, image=cursor_img, command=select_none).grid(
+    row=0, column=0, padx=builder_button_padding[0], pady=builder_button_padding[1])
+pointer_button = ttk.Button(builder, image=delete_img, command=select_delete).grid(
+    row=0, column=1, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+
+# row 2
+wire_button = ttk.Button(builder, image=wire_straight_imgs['horizontal'], command=select_wire).grid(
+    row=1, column=0, padx=builder_button_padding[0], pady=builder_button_padding[1])
+input_node_button = ttk.Button(builder, image=input_node_junction_imgs['right'], command=select_input_node).grid(
+    row=1, column=1, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+output_node_button = ttk.Button(builder, image=output_node_cross_imgs['right'], command=select_output_node).grid(
+    row=1, column=2, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+
+# row 3
+battery_button = wire_button = ttk.Button(builder, image=battery_imgs['left'], command=select_battery).grid(
+    row=2, column=0, padx=builder_button_padding[0], pady=builder_button_padding[1])
+resistor_button = wire_button = ttk.Button(builder, image=resistor_imgs['horizontal'], command=select_resistor).grid(
+    row=2, column=1, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+capacitor_button = wire_button = ttk.Button(builder, image=capacitor_imgs['horizontal'], command=select_capacitor).grid(
+    row=2, column=2, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+
+labelframe = ttk.LabelFrame(options_view, text="This is a LabelFrame").grid(
+    row=3, column=0, sticky='w')
 
 
 dir = 1
@@ -1388,8 +1645,8 @@ def run_circuit():
     print(R_eq)
 
 
-run_button = Button(options_view, text="Run",
-                    command=run_circuit).grid(row=3, column=0)
+run_button = ttk.Button(options_view, text="Run",
+                        command=run_circuit).grid(row=4, column=0, pady=padding[1])
 
 
 def toggle_labels():
@@ -1398,13 +1655,12 @@ def toggle_labels():
     draw_circuit()
 
 
-labels_button = Checkbutton(
-    options_view, text="Hide Labels", command=toggle_labels
-).grid(row=5, sticky=W)
+labels_button = ttk.Checkbutton(
+    options_view, text="Hide Labels", command=toggle_labels).grid(row=6, sticky=W)
 
 
-clear_button = Button(options_view, text="Clear", command=clear_circuit).grid(
-    row=4, column=0
+clear_button = ttk.Button(options_view, text="Clear", command=clear_circuit).grid(
+    row=5, column=0, pady=(0, padding[1])
 )
 
 draw_grid()

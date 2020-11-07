@@ -34,7 +34,7 @@ def validate_resistance(flt):
 
 class BatteryDialog:
     def __init__(self, parent, default, flip_default, x, y):
-        top = self.top = Toplevel(parent)
+        self.top = Toplevel(parent)
         self.voltage_label = Label(top, text="Voltage")
         self.voltage_label.pack()
 
@@ -63,7 +63,7 @@ class BatteryDialog:
 
 class CapacitorDialog:
     def __init__(self, parent, default, flip_default, x, y):
-        top = self.top = Toplevel(parent)
+        self.top = Toplevel(parent)
         self.capacitance_label = Label(top, text="Capacitance")
         self.capacitance_label.pack()
 
@@ -91,7 +91,7 @@ class CapacitorDialog:
 
 class ResistorDialog:
     def __init__(self, parent, default, flip_default, x, y):
-        top = self.top = Toplevel(parent)
+        self.top = Toplevel(parent)
         self.resistance_label = Label(top, text="Resistance")
         self.resistance_label.pack()
         entry = StringVar()
