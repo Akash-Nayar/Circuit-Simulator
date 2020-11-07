@@ -17,11 +17,12 @@ cell_size = 20
 canvas_width = circuit_width * cell_size
 canvas_height = circuit_height * cell_size
 
-circuit_view = Canvas(root, width=canvas_width, height=canvas_height, highlightthickness=1, highlightbackground="black")
+circuit_view = Canvas(root, width=canvas_width, height=canvas_height,
+                      highlightthickness=1, highlightbackground="black")
 options_view = Frame(root)
 
 padding = (100, 0)
-circuit_view.grid(row=0, column=0, sticky="n",padx=padding)
+circuit_view.grid(row=0, column=0, sticky="n", padx=padding)
 options_view.grid(row=0, column=1, sticky="n")
 
 
@@ -84,11 +85,8 @@ def get_path(position, curr_path, visited, end_point):
     visited.append(position)
     if position == end_point:
         return curr_path
-    above = (position[0] - 1, position[1])
-    below = (position[0] + 1, position[1])
-    right = (position[0], position[1] + 1)
-    left = (position[0], position[1] - 1)
-    possibilities = [above, below, right, left]
+    possibilities = get_possibilities(position[0], position[1])
+    above, below, right, left = possibilities
     availabilities = []
     for possibility in possibilities:
         try:
@@ -233,6 +231,7 @@ class CircuitItem:
         self._current = current
         self._capacitance = capacitance
         self._charge = charge
+        self.flipped = False
 
     @property
     def voltage(self):
@@ -367,7 +366,8 @@ def get_direction(dir):
 
 class InputNode(Wire):
 
-    imgs = {"junction": input_node_junction_imgs, "cross": input_node_cross_imgs}
+    imgs = {"junction": input_node_junction_imgs,
+            "cross": input_node_cross_imgs}
 
     default_state = "junction"
     default_direction = "right"
@@ -426,20 +426,26 @@ class Resistor(CircuitItem):
 
         direction = self.default_direction if direction is None else direction
         if draw_labels:
-
+            if self.flipped:
+                multiplier = -3
+                angle_offset = 180
+            else:
+                multiplier = 1
+                angle_offset = 0
             if direction == "horizontal":
                 # Draw labels above
                 circuit_view.create_text(
                     j * 20 + 10,
-                    i * 20 - 10,
+                    i * 20 - multiplier*10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
+                    angle=angle_offset
                 )
             else:
                 circuit_view.create_text(
-                    j * 20 - 10,
+                    j * 20 - multiplier*10,
                     i * 20 + 10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
-                    angle=90,
+                    angle=angle_offset+90,
                 )
 
         try:
@@ -462,12 +468,26 @@ class Battery(CircuitItem):
 
         direction = self.default_direction if direction is None else direction
         if draw_labels:
-            if direction in ["left", "right"]:
-                # place above
+            if self.flipped:
+                multiplier = -3
+                angle_offset = 180
+            else:
+                multiplier = 1
+                angle_offset = 0
+            if direction in ['left', 'right']:
+                # Draw labels above
                 circuit_view.create_text(
                     j * 20 + 10,
-                    i * 20 - 10,
+                    i * 20 - multiplier * 10,
                     text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
+                    angle=angle_offset
+                )
+            else:
+                circuit_view.create_text(
+                    j * 20 - multiplier * 10,
+                    i * 20 + 10,
+                    text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
+                    angle=angle_offset+90,
                 )
 
         try:
@@ -510,20 +530,26 @@ class Capacitor(CircuitItem):
 
         direction = self.default_direction if direction is None else direction
         if draw_labels:
-
+            if self.flipped:
+                multiplier = -3
+                angle_offset = 180
+            else:
+                multiplier = 1
+                angle_offset = 0
             if direction == "horizontal":
                 # Draw labels above
                 circuit_view.create_text(
                     j * 20 + 10,
-                    i * 20 - 10,
+                    i * 20 - multiplier * 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
+                    angle=angle_offset
                 )
             else:
                 circuit_view.create_text(
-                    j * 20 - 10,
+                    j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
-                    angle=90,
+                    angle=angle_offset+90,
                 )
 
         try:
@@ -668,7 +694,6 @@ class ParallelCell(CircuitItem):
         return sum([segment.capacitance for segment in self.paths_items])
 
 
-
 draw_lines = True
 blockSize = 20  # Set the size of the grid block
 lines = Image.open("images/lines.png")
@@ -676,25 +701,18 @@ print(lines.mode)
 print(lines.size)
 #lines.thumbnail((blockSize*circuit_width+6, blockSize*circuit_height+6), Image.ANTIALIAS)
 lines_img = ImageTk.PhotoImage(lines)
+
+
 def draw_grid():
 
     global draw_lines
 
-
     if draw_lines:
         circuit_view.create_image(
-                0, 0,
-                anchor=NW,
-                image=lines_img,
-            )
-        """for i in range(circuit_width + 1):
-            circuit_view.create_line(
-                cell_size * i, 0, cell_size * i, canvas_height, fill="#B3B3B3"
-            )
-        for j in range(circuit_height + 1):
-            circuit_view.create_line(
-                0, cell_size * j, canvas_width, cell_size * j, fill="#B3B3B3"
-            )"""
+            0, 0,
+            anchor=NW,
+            image=lines_img,
+        )
 
     else:
         for i in range(circuit_width + 1):
@@ -733,7 +751,7 @@ def get_neighbors(arr, possibilities):
 def draw_circuit():
     global circuit, circuit_objects
     circuit_view.delete(ALL)
-    #draw_grid()
+    # draw_grid()
     for i, row in enumerate(circuit):
         for j, item in enumerate([int(x) for x in row]):
             if item == 0:
@@ -742,10 +760,6 @@ def draw_circuit():
             elif item in [1, 2, 3, 4, 5, 6, 7]:
                 obj = circuit_objects[i][j]
                 # Check for neighbors
-                up = (i - 1, j)
-                down = (i + 1, j)
-                right = (i, j + 1)
-                left = (i, j - 1)
                 possibilities = get_possibilities(i, j)
                 up, down, right, left = possibilities
                 neighbors = get_neighbors(circuit, possibilities)
@@ -790,9 +804,11 @@ def draw_circuit():
                         # input node - point in direction of neighbor
                         elif item == 2:
                             if right in neighbors:
-                                obj.draw(i, j, state="junction", direction="left")
+                                obj.draw(i, j, state="junction",
+                                         direction="left")
                             else:
-                                obj.draw(i, j, state="junction", direction="right")
+                                obj.draw(i, j, state="junction",
+                                         direction="right")
                         elif item == 5:
                             if dir == 1:
                                 obj.draw(i, j, direction="right")
@@ -806,15 +822,16 @@ def draw_circuit():
                         # input node - point in direction of neigbor
                         elif item == 2:
                             if up in neighbors:
-                                obj.draw(i, j, state="junction", direction="down")
+                                obj.draw(i, j, state="junction",
+                                         direction="down")
                             else:
-                                obj.draw(i, j, state="junction", direction="up")
+                                obj.draw(i, j, state="junction",
+                                         direction="up")
                         elif item == 5:
                             if dir == 1:
                                 obj.draw(i, j, direction="down")
                             else:
                                 obj.draw(i, j, direction="up")
-                        # print(type(obj), "vertical")
                 elif len(neighbors) == 2:
                     # Either straight or corner piece
 
@@ -824,7 +841,6 @@ def draw_circuit():
                         # same row - horizontal
                         if item not in [2, 3, 5]:
                             obj.draw(i, j, direction="horizontal")
-                            # surface.blit(wire_straight_imgs['horizontal'], (20*j, 20*i))
                         # input node - point up
                         elif item == 2:
                             obj.draw(i, j, state="junction", direction="up")
@@ -841,7 +857,6 @@ def draw_circuit():
                         # same column - vertical
                         if item not in [2, 3, 5]:
                             obj.draw(i, j, direction="vertical")
-                            # surface.blit(wire_straight_imgs['vertical'], (20 * j, 20 * i))
                         # input node - point right
                         elif item == 2:
                             obj.draw(i, j, state="junction", direction="right")
@@ -863,11 +878,10 @@ def draw_circuit():
                                     obj.draw(
                                         i, j, state="corner", direction="right_down"
                                     )
-                                    # surface.blit(wire_corner_imgs['right_down'], (20 * j, 20 * i))
                                 else:
                                     # down left
-                                    obj.draw(i, j, state="corner", direction="up_right")
-                                    # surface.blit(wire_corner_imgs['up_right'], (20 * j, 20 * i))
+                                    obj.draw(i, j, state="corner",
+                                             direction="up_right")
                             else:
                                 # down and right - default
                                 if right in neighbors:
@@ -875,20 +889,23 @@ def draw_circuit():
                                     obj.draw(
                                         i, j, state="corner", direction="down_left"
                                     )
-                                    # surface.blit(wire_corner_imgs['down_left'], (20 * j, 20 * i))
                                 else:
                                     # left-up left
-                                    obj.draw(i, j, state="corner", direction="left_up")
-                                    # surface.blit(wire_corner_imgs['left_up'], (20 * j, 20 * i))
+                                    obj.draw(i, j, state="corner",
+                                             direction="left_up")
                         elif item == 2:
                             if up == neighbors[0]:
-                                obj.draw(i, j, state="junction", direction="down")
+                                obj.draw(i, j, state="junction",
+                                         direction="down")
                             elif down == neighbors[0]:
-                                obj.draw(i, j, state="junction", direction="up")
+                                obj.draw(i, j, state="junction",
+                                         direction="up")
                             elif right == neighbors[0]:
-                                obj.draw(i, j, state="junction", direction="left")
+                                obj.draw(i, j, state="junction",
+                                         direction="left")
                             else:
-                                obj.draw(i, j, state="junction", direction="right")
+                                obj.draw(i, j, state="junction",
+                                         direction="right")
 
                         elif item == 3:
                             obj.draw(i, j)
@@ -898,17 +915,17 @@ def draw_circuit():
                         for possibility in possibilities:
                             if possibility not in neighbors:
                                 if possibility == down:
-                                    obj.draw(i, j, state="junction", direction="down")
-                                    # surface.blit(wire_junction_imgs['down'], (20 * j, 20 * i))
+                                    obj.draw(i, j, state="junction",
+                                             direction="down")
                                 elif possibility == left:
-                                    obj.draw(i, j, state="junction", direction="left")
-                                    # surface.blit(wire_junction_imgs['left'], (20 * j, 20 * i))
+                                    obj.draw(i, j, state="junction",
+                                             direction="left")
                                 elif possibility == up:
-                                    obj.draw(i, j, state="junction", direction="up")
-                                    # surface.blit(wire_junction_imgs['up'], (20 * j, 20 * i))
+                                    obj.draw(i, j, state="junction",
+                                             direction="up")
                                 else:
-                                    obj.draw(i, j, state="junction", direction="right")
-                                    # surface.blit(wire_junction_imgs['right'], (20 * j, 20 * i))
+                                    obj.draw(i, j, state="junction",
+                                             direction="right")
                                 break
                     if item == 3:
 
@@ -967,9 +984,10 @@ def draw_circuit():
 
 
 def clear_circuit():
-    global circuit, circuit_objects
+    global circuit, circuit_objects, capacitors
     circuit = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
+    capacitors = []
     draw_circuit()
 
 
@@ -1074,8 +1092,6 @@ def left_click(event):
         circuit_objects[x][y] = Wire()
     elif item == 3:
         real_item = circuit[x][y]
-        obj = circuit_objects[x][y]
-        # print(obj.default_direction, circuit[x][y])
         if real_item == 3.0:
             circuit_objects[x][y] = OutputNode(0.5)
             circuit[x][y] = 3.5
@@ -1092,28 +1108,32 @@ def left_click(event):
     # Allow to change battery voltage:
     elif item == 5:
         obj = circuit_objects[x][y]
-        battery_dialog = gui.BatteryDialog(root, obj.voltage)
+        battery_dialog = gui.BatteryDialog(
+            root, obj.voltage, obj.flipped, event.x_root, event.y_root)
         root.wait_window(battery_dialog.top)
         #print("voltage: ", gui.voltage)
-
+        obj.flipped = gui.flip
         obj.voltage = gui.voltage
     # Allow to change resistor
     elif item == 6:
         obj = circuit_objects[x][y]
-        resistance_dialog = gui.ResistorDialog(root, obj.resistance)
+        resistance_dialog = gui.ResistorDialog(
+            root, obj.resistance, obj.flipped, event.x_root, event.y_root)
         root.wait_window(resistance_dialog.top)
         #print("voltage: ", gui.resistance)
-
+        obj.flipped = gui.flip
         obj.resistance = gui.resistance
         print(obj)
 
     elif item == 7:
         print(ti(circuit_objects, (x, y)).charge)
         obj = circuit_objects[x][y]
-        capacitance_dialog = gui.CapacitorDialog(root, obj.capacitance)
+        capacitance_dialog = gui.CapacitorDialog(
+            root, obj.capacitance, obj.flipped, event.x_root, event.y_root)
         root.wait_window(capacitance_dialog.top)
         #print("capacitance: ", gui.capacitance)
         #print("charge:", obj.charge)
+        obj.flipped = gui.flip
         obj.capacitance = gui.capacitance
     # print("clicked at", x, y)
 
@@ -1125,7 +1145,7 @@ def handle_key(event):
     global circuit_objects, x, y
     x, y = ((event.x-padding[0]) // 20, (event.y+padding[1]) // 20)
 
-    #take care of inconsitencies with mouse position
+    # take care of inconsitencies with mouse position
     #x, y = (circuit_view.winfo_pointerx() // 20, circuit_view.winfo_pointery() // 20)
     print(x, y)
     if event.char == "r":
@@ -1136,6 +1156,8 @@ def handle_key(event):
         add_input_node()
     elif event.char == "o":
         add_output_node()
+    elif event.char == "c":
+        add_capacitor()
     elif event.char == "t":
         item = ti(circuit_objects, (y, x))
         print(item)
@@ -1159,7 +1181,8 @@ circuit_view.bind_all("<KeyRelease>", handle_key)
 
 R_eq = 0
 I_tot = 0
-label1 = Label(options_view, text=f"Total Resistance: {R_eq}").grid(row=0, column=0)
+label1 = Label(options_view, text=f"Total Resistance: {R_eq}").grid(
+    row=0, column=0)
 label2 = Label(options_view, text=f"Total Current: {I_tot}").grid(
     row=1, column=0, sticky="w"
 )
@@ -1239,11 +1262,6 @@ def run_circuit():
     )
     paths = get_path(origin, current_path, already_visited, end)
 
-    print("paths", paths)
-
-    # for path in paths:
-    # print_path(path)
-
     # New approach
 
     # Iterate through each step, checking the item at step
@@ -1299,7 +1317,8 @@ def run_circuit():
             for new_path in new_paths:
                 shortened_path = new_path[: new_path.index(ending) + 1]
                 if shortened_path not in shortened_paths:
-                    shortened_paths.append(new_path[: new_path.index(ending) + 1])
+                    shortened_paths.append(
+                        new_path[: new_path.index(ending) + 1])
                     # print_path(new_path[:new_path.index(ending)+1])
             # print(shortened_paths)
 
@@ -1327,8 +1346,6 @@ def run_circuit():
     for item in circuit_objs.contents:
         item.voltage = item.resistance * I_tot
 
-    # for item in circuit_objs[0].paths_items:
-    #   print(item.resistance, item.current, item.voltage)
     # We can reduce the circuit such that it only has 1 capacitor of capacitance C_eq and 1 resistor of R_eq
 
     # Voltage of capacitor is V_tot - V_res = V_tot - R_eq*I_tot
@@ -1352,24 +1369,27 @@ def run_circuit():
             capacitor.times.append(current_time)
             capacitor.charges.append(current_charge)
 
-    if len(capacitors) >0:
+    if len(capacitors) > 0:
         fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
 
         for i, capacitor in enumerate(capacitors):
 
             x_new = np.linspace(0, capacitor.times[-1], 300)
-            a_BSpline = interpolate.make_interp_spline(capacitor.times, capacitor.charges)
+            a_BSpline = interpolate.make_interp_spline(
+                capacitor.times, capacitor.charges)
             y_new = a_BSpline(x_new)
-            ax[i].plot(x_new, y_new)
-
+            try:
+                ax[i].plot(x_new, y_new)
+            except TypeError:
+                ax.plot(x_new, y_new)
         plt.show()
 
     print("total_current", I_tot)
     print(R_eq)
 
 
-run_button = Button(options_view, text="Run", command=run_circuit).grid(row=3, column=0)
-
+run_button = Button(options_view, text="Run",
+                    command=run_circuit).grid(row=3, column=0)
 
 
 def toggle_labels():
