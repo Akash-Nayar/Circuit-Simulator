@@ -96,7 +96,6 @@ circuit_view = Canvas(circuit_view_frame, width=canvas_width, height=canvas_heig
                       highlightthickness=1, background='gray10' if dark_mode else None, highlightbackground="black")
 
 options_view = ttk.Frame(creator)
-root.option_add("*Font", "Calibri")
 
 # the root window was already created, so we
 # have to update it ourselves
