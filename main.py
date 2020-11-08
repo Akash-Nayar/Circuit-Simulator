@@ -93,7 +93,7 @@ circuit_view_frame = ttk.LabelFrame(creator, text='Circuit Board')
 circuit_view_frame.grid(row=0, column=0, sticky="n",
                   padx=padding[0], pady=padding[1])
 circuit_view = Canvas(circuit_view_frame, width=canvas_width, height=canvas_height,
-                      highlightthickness=1, background='gray10' if dark_mode else None, highlightbackground="black")
+                      highlightthickness=1, background=None if dark_mode else None, highlightbackground="black")
 
 options_view = ttk.Frame(creator)
 
@@ -1008,8 +1008,6 @@ def get_neighbors(arr, possibilities):
 def draw_circuit():
     global circuit, circuit_objects
     circuit_view.delete(ALL)
-
-    print("num elements: ",len(circuit_objects_list))
     #draw_grid()
 
     for i, row in enumerate(circuit):
@@ -1290,7 +1288,7 @@ def delete_item():
 
 def add_item(code):
     global x, y, circuit, circuit_objects, circuit_objects_list
-    print(x, y)
+    #print(x, y)
     if code == 0:
         item = ti(circuit, (y, x))
         if item == 0:
@@ -1360,7 +1358,8 @@ mode = 0
 def left_click(event):
     global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode
     x, y = (event.x // 20, event.y // 20)
-
+    if x not in list(range(circuit_width)) or y not in list(range(circuit_height)):
+        return
     if old_x == x and old_y == y:
         return
     old_x, old_y = x, y
@@ -1424,13 +1423,13 @@ def left_click(event):
 # draw the grid
 def handle_key(event):
     global circuit_objects, x, y
-    print(event.x, event.y)
-    print(event.x_root, event.y_root)
+    #print(event.x, event.y)
+    #print(event.x_root, event.y_root)
     #x, y = (event.x // 20, event.y // 20)
 
     # take care of inconsitencies with mouse position
     #x, y = (circuit_view.winfo_pointerx() // 20, circuit_view.winfo_pointery() // 20)
-    print(x, y)
+    #print(x, y)
     if event.char == "r":
         add_resistor()
     elif event.char == "b":
@@ -1560,6 +1559,7 @@ def run_circuit():
     # Run circuit and update labels
     global circuit, circuit_objects, circuit_objects_list, R_eq, capacitors, style
     style.theme_use(style_str)
+    circuit_view.configure(bg="gray10")
     # Get origin, end, and already_visited
     # end is battery location, origin is 2 away, already visited is 1 away
     for i, row in enumerate(circuit):
