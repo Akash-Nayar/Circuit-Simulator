@@ -9,15 +9,19 @@ from PIL import Image, ImageTk, ImageOps
 from scipy import interpolate
 import numpy as np
 
+
 # Colors
 color1 = "#F7F7F8"
 color2 = "#E2E2E1"
 color1 = "#AAAAAA"
 color2 = "#BBBBBB"
 
+
 root = Tk()
 root.title("Circuit Simulator")
 root.resizable(False, False)
+
+
 
 style = ttk.Style(root)
 
@@ -33,6 +37,7 @@ root.tk.eval("""
     # ... (you can add the other themes from the package if you want
     """)
 root.tk.call("package", "require", 'awdark')
+root.tk.call("package", "require", 'awdark')
 root.tk.call("package", "require", 'awlight')
 print(style.theme_names())
 style_str = 'awdark'
@@ -43,7 +48,7 @@ else:
 style.theme_use(style_str)
 
 root.configure(bg=style.lookup('TFrame', 'background'))
-style.theme_use('awdark')
+style.theme_use('awlight')
 display_width = 1280
 display_height = 720
 
@@ -53,6 +58,7 @@ circuit_height = 30
 cell_size = 20
 canvas_width = circuit_width * cell_size
 canvas_height = circuit_height * cell_size
+
 
 bg_color = color2
 bg_widget_color = color1
@@ -80,14 +86,14 @@ resistor_canvas.grid(row=0, column=0)
 resistor_scrollbar.grid(row=1, column=0)
 """
 padding = (10, 10)
-tab_control.add(creator, text='Creator')
-tab_control.add(observer, text='Observer')
+tab_control.add(creator, text ='Creator')
+tab_control.add(observer, text ='Observer')
 tab_control.grid(row=0, column=0)
 circuit_view_frame = ttk.LabelFrame(creator, text='Circuit Board')
 circuit_view_frame.grid(row=0, column=0, sticky="n",
-                        padx=padding[0], pady=padding[1])
+                  padx=padding[0], pady=padding[1])
 circuit_view = Canvas(circuit_view_frame, width=canvas_width, height=canvas_height,
-                      highlightthickness=1, background='gray10' if dark_mode else None, highlightbackground="black")
+                      highlightthickness=1, background=None if dark_mode else None, highlightbackground="black")
 
 options_view = ttk.Frame(creator)
 
@@ -99,6 +105,7 @@ circuit_view.grid(row=0, column=0, sticky="n",
                   padx=padding[0], pady=padding[1])
 options_view.grid(row=0, column=1, sticky="n",
                   padx=(0, padding[0]))
+
 
 circuit = [[0] * circuit_width for _ in range(circuit_height)]
 circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
@@ -171,9 +178,9 @@ def get_path(position, curr_path, visited, end_point):
         except IndexError:
             continue
 
-    # Check if we are at a branch, len(availabilities) that are not in visited > 1:
+    # Check if we are at an input node:
     current_value = ti(circuit, position)
-    if len(availabilities) > 1:
+    if current_value == 2:
         new_paths = [
             get_path(availability, [], visited.copy(), end_point)
             for availability in availabilities
@@ -222,7 +229,6 @@ def convert_color(im, old_c, new_c):
     im2 = Image.fromarray(data)
     return im2
 
-
 new_color = (255, 255, 255)
 old_color = (0, 0, 0)
 
@@ -233,6 +239,8 @@ cursor_img = ImageTk.PhotoImage(Image.open(
 delete_img = Image.open("images/x.png").resize((cell_size, cell_size), Image.ANTIALIAS)
 delete_img = delete_img if not dark_mode else convert_color(delete_img, old_color, new_color)
 delete_img = ImageTk.PhotoImage(delete_img)
+
+
 
 wire_straight_img = Image.open(f"images/wire_straight.png")
 wire_straight_img = wire_straight_img if not dark_mode else convert_color(wire_straight_img, old_color, new_color)
@@ -262,8 +270,7 @@ wire_cross_img = wire_cross_img if not dark_mode else convert_color(wire_cross_i
 wire_cross_imgs = {"any": ImageTk.PhotoImage(wire_cross_img)}
 
 input_node_junction_img = Image.open(f"images/input_node_junction.png")
-input_node_junction_img = input_node_junction_img if not dark_mode else convert_color(input_node_junction_img,
-                                                                                      old_color, new_color)
+input_node_junction_img = input_node_junction_img if not dark_mode else convert_color(input_node_junction_img, old_color, new_color)
 input_node_junction_imgs = {
     "up": ImageTk.PhotoImage(input_node_junction_img),
     "left": ImageTk.PhotoImage(input_node_junction_img.rotate(90)),
@@ -271,13 +278,11 @@ input_node_junction_imgs = {
     "right": ImageTk.PhotoImage(input_node_junction_img.rotate(270)),
 }
 input_node_cross_img = Image.open(f"images/input_node_cross.png")
-input_node_cross_img = input_node_cross_img if not dark_mode else convert_color(input_node_cross_img, old_color,
-                                                                                new_color)
+input_node_cross_img = input_node_cross_img if not dark_mode else convert_color(input_node_cross_img, old_color, new_color)
 input_node_cross_imgs = {"any": ImageTk.PhotoImage(input_node_cross_img)}
 
 output_node_corner_left_img = Image.open(f"images/output_node_corner.png")
-output_node_corner_left_img = output_node_corner_left_img if not dark_mode else convert_color(
-    output_node_corner_left_img, old_color, new_color)
+output_node_corner_left_img = output_node_corner_left_img if not dark_mode else convert_color(output_node_corner_left_img, old_color, new_color)
 output_node_corner_left_imgs = {
     "down": ImageTk.PhotoImage(output_node_corner_left_img),
     "right": ImageTk.PhotoImage(output_node_corner_left_img.rotate(90)),
@@ -286,8 +291,7 @@ output_node_corner_left_imgs = {
 }
 
 output_node_corner_right_img = ImageOps.mirror(output_node_corner_left_img)
-output_node_corner_right_img = output_node_corner_right_img if not dark_mode else convert_color(
-    output_node_corner_right_img, old_color, new_color)
+output_node_corner_right_img = output_node_corner_right_img if not dark_mode else convert_color(output_node_corner_right_img, old_color, new_color)
 output_node_corner_right_imgs = {
     "down": ImageTk.PhotoImage(output_node_corner_right_img),
     "right": ImageTk.PhotoImage(output_node_corner_right_img.rotate(90)),
@@ -295,9 +299,9 @@ output_node_corner_right_imgs = {
     "left": ImageTk.PhotoImage(output_node_corner_right_img.rotate(270)),
 }
 
+
 output_node_junction_img = Image.open(f"images/output_node_junction.png")
-output_node_junction_img = output_node_junction_img if not dark_mode else convert_color(output_node_junction_img,
-                                                                                        old_color, new_color)
+output_node_junction_img = output_node_junction_img if not dark_mode else convert_color(output_node_junction_img, old_color, new_color)
 output_node_junction_imgs = {
     "down": ImageTk.PhotoImage(output_node_junction_img),
     "right": ImageTk.PhotoImage(output_node_junction_img.rotate(90)),
@@ -305,14 +309,14 @@ output_node_junction_imgs = {
     "left": ImageTk.PhotoImage(output_node_junction_img.rotate(270)),
 }
 output_node_cross_img = Image.open(f"images/output_node_cross.png")
-output_node_cross_img = output_node_cross_img if not dark_mode else convert_color(output_node_cross_img, old_color,
-                                                                                  new_color)
+output_node_cross_img = output_node_cross_img if not dark_mode else convert_color(output_node_cross_img, old_color, new_color)
 output_node_cross_imgs = {
     "down": ImageTk.PhotoImage(output_node_cross_img),
     "right": ImageTk.PhotoImage(output_node_cross_img.rotate(90)),
     "up": ImageTk.PhotoImage(output_node_cross_img.rotate(180)),
     "left": ImageTk.PhotoImage(output_node_cross_img.rotate(270)),
 }
+
 
 resistor_img = Image.open(f"images/resistor.png")
 resistor_img = resistor_img if not dark_mode else convert_color(resistor_img, old_color, new_color)
@@ -486,6 +490,7 @@ def get_direction(dir):
 
 
 class InputNode(Wire):
+
     imgs = {"junction": input_node_junction_imgs,
             "cross": input_node_cross_imgs}
 
@@ -556,17 +561,17 @@ class Resistor(CircuitItem):
                 # Draw labels above
                 circuit_view.create_text(
                     j * 20 + 10,
-                    i * 20 - multiplier * 10,
+                    i * 20 - multiplier*10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
                     angle=angle_offset,
                     fill='white'
                 )
             else:
                 circuit_view.create_text(
-                    j * 20 - multiplier * 10,
+                    j * 20 - multiplier*10,
                     i * 20 + 10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
-                    angle=angle_offset + 90,
+                    angle=angle_offset+90,
                     fill='white'
                 )
 
@@ -579,6 +584,7 @@ class Resistor(CircuitItem):
 
 
 class Battery(CircuitItem):
+
     default_direction = "left"
     imgs = battery_imgs
 
@@ -609,7 +615,7 @@ class Battery(CircuitItem):
                     j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
-                    angle=angle_offset + 90,
+                    angle=angle_offset+90,
                     fill='white'
                 )
 
@@ -630,6 +636,7 @@ class Battery(CircuitItem):
 
 
 class Capacitor(CircuitItem):
+
     id = 1
 
     imgs = capacitor_imgs
@@ -672,7 +679,7 @@ class Capacitor(CircuitItem):
                     j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
-                    angle=angle_offset + 90,
+                    angle=angle_offset+90,
                     fill='white'
                 )
 
@@ -691,121 +698,90 @@ class ParallelCell(CircuitItem):
         self.origin = paths[0][0]
         self.end = paths[0][-1]
         self._voltage = 0
-        print('self.end', self.end)
         # Check paths for parallels within
 
         # 2D, each row is a path, each column represent object
         self.paths_items = []
-        # IF 2 PATHS HAVE THE SAME NEW_NODE, FIND THEIR INTERSECTIOSN
+
         new_nodes = []
         for path in self.paths:
-            escape = False
-            # Check to see if current path contains one of the new nodes, disregard if so
 
-            #
-            print_circuit(path)
+            # Check to see if current path contains one of the new nodes, disregard if so
             if any(node in new_nodes for node in path):
-                print('this is true??????')
                 continue
 
             path_items = []
 
             skip_until = False
             target = (0, 0)
-            x_path = [path[1]]
-            for i, step in enumerate(path[2:-1]):
-
-                # If it is an input node
-                possibilities = get_possibilities(step[0], step[1])
-                neighbors = [neighbor for neighbor in get_neighbors(circuit, possibilities) if neighbor not in x_path]
-                print('step: ', step, 'neighbors:', neighbors)
-                if len(neighbors) > 1:
-                    # add the new node, continue
-                    new_nodes.append(step)
-                    break
-                x_path.append(step)
-
-        print('NEW NODES:', new_nodes)
-
-        # group paths by the common nodes they share
-        used_paths = []
-        paths_to_explore = []
-        for new_node in new_nodes:
-            node_paths = []
-            for path in self.paths:
-                if new_node in path:
-                    used_paths.append(path)
-                    node_paths.append(path)
-            paths_to_explore.append(node_paths)
-
-        for path in self.paths:
-            if path not in used_paths:
-                paths_to_explore.append([path])
-
-        print('paths to explore! ', paths_to_explore)
-        for paths in paths_to_explore:
-            paths_intersection = []
-            if len(paths) > 1:
-                for item in paths[0]:
-                    add = True
-                    for path in paths[1:]:
-                        if item not in path:
-                            add = False
-                    if add:
-                        paths_intersection.append(item)
-
-            print('subpath intersction', paths_intersection)
-            # now just do the same thing as we do in the main segment for each of the paths
-            x_path = [paths[0][0]]
-            path_items = []
-            path = paths[0]
-            print('exploring path: ', path)
-            for i, step in enumerate(path[1:-1]):
+            for i, step in enumerate(path[1:]):
                 if skip_until and step != target:
                     continue
 
                 skip_until = False
                 item = ti(circuit, step)
-                x_path.append(step)
 
-                # get number of neighbors
-                possibilities = get_possibilities(step[0], step[1])
-                neighbors = [neighbor for neighbor in get_neighbors(circuit, possibilities) if
-                             neighbor not in x_path]
-                print(len(neighbors))
-                # Check for resistor:
+                """# If it is a wire:
+                if item == 1:
+                    path_items.append(Wire())
+                    # Check neighbors:
+                    above = (step[0] - 1, step[1])
+                    below = (step[0] + 1, step[1])
+                    right = (step[0], step[1] + 1)
+                    left = (step[0], step[1] - 1)
+                    possibilities = [above, below, right, left]
+                    availabilities = []
+                    for possibility in possibilities:
+                        try:
+                            value = ti(circuit, possibility)
+                            if value != 0:
+                                availabilities.append(possibility)
+                        except IndexError:
+                            continue
+                    # Do some other stuff that im too lazy to do rn
+"""
+                # If it is a resistor:
                 if item == 6:
-
                     path_items.append(ti(circuit_objects, step))
 
                 elif item == 7:
                     path_items.append(ti(circuit_objects, step))
-
-                # Check for node:
-
-                elif len(neighbors) > 1:
+                # If it is an input node
+                elif item == 2:
+                    new_nodes.append(step)
                     previous_item = ti(circuit, paths[0][i])
                     # Generate new paths starting at this node:
-                    # find next path element that is in intersection
-                    end = paths_intersection[paths_intersection.index(step) + 1]
-                    print(end)
 
-                    raw_new_paths = get_path(step, [], [paths[0][i]], end)
-                    new_paths = [new_path for new_path in raw_new_paths if end in new_path]
-                    for p in new_paths:
-                        print(p)
-                        for s in p:
-                            x_path.append(s)
+                    new_paths = get_path(step, [], [path[i]], self.end)
 
-                    path_items.append(ParallelCell(new_paths))
+                    # print_path(new_path)
+                    # Find the end, when num of input and output nodes are equal
+                    print("new")
+                    num_input = 0
+                    num_output = 0
+                    for new_step in new_paths[0]:
+                        new_item = ti(circuit, new_step)
+                        if new_item == 2:
+                            num_input += 1
+                        elif int(new_item) == 3:
+                            num_output += 1
+                        if num_input == num_output:
+                            ending = new_step
+                            break
+                    # Shorten the paths
+                    shortened_paths = []
+                    for new_path in new_paths:
+                        shortened_path = new_path[: new_path.index(ending) + 1]
+                        if shortened_path not in shortened_paths:
+                            shortened_paths.append(
+                                new_path[: new_path.index(ending) + 1]
+                            )
+                    path_items.append(ParallelCell(shortened_paths))
                     skip_until = True
-                    target = end
+                    target = ending
             self.paths_items.append(CircuitSegment(path_items))
 
-        # for i, path in enumerate(self.paths_items):
-        # print(f'PATH {i}: {path}')
-
-        # print(self.paths_items)
+            # print(self.paths_items)
 
     def __repr__(self):
         return f"ParallelCell(paths_items={self.paths_items})"
@@ -856,6 +832,7 @@ flip = False
 
 
 def validate_float(flt, positive=False):
+
     if not positive:
         try:
             if flt[0] == "-":
@@ -979,11 +956,12 @@ else:
     lines = lines_original
 print(lines.mode)
 print(lines.size)
-# lines.thumbnail((blockSize*circuit_width+6, blockSize*circuit_height+6), Image.ANTIALIAS)
+#lines.thumbnail((blockSize*circuit_width+6, blockSize*circuit_height+6), Image.ANTIALIAS)
 lines_img = ImageTk.PhotoImage(lines)
 
 
 def draw_grid():
+
     global draw_lines
 
     if draw_lines:
@@ -999,9 +977,9 @@ def draw_grid():
             for j in range(circuit_height + 1):
                 x = i * blockSize
                 y = j * blockSize
-                circuit_view.create_oval(x - 1, y - 1, x + 1, y + 1, fill="#B3B3B3")
+                circuit_view.create_oval(x-1, y-1, x+1, y+1, fill="#B3B3B3")
     circuit_view.update()
-    # circuit_view.postscript(file="lines.ps", colormode='color')
+    #circuit_view.postscript(file="lines.ps", colormode='color')
 
 
 # GUI
@@ -1030,7 +1008,7 @@ def get_neighbors(arr, possibilities):
 def draw_circuit():
     global circuit, circuit_objects
     circuit_view.delete(ALL)
-    # draw_grid()
+    #draw_grid()
 
     for i, row in enumerate(circuit):
         for j, item in enumerate([int(x) for x in row]):
@@ -1213,8 +1191,8 @@ def draw_circuit():
                         found = False
                         for neighbor in neighbors:
                             if neighbor != direction_neighbor and (
-                                    neighbor[0] == direction_neighbor[0]
-                                    or neighbor[1] == direction_neighbor[1]
+                                neighbor[0] == direction_neighbor[0]
+                                or neighbor[1] == direction_neighbor[1]
                             ):
                                 found = True
                                 break
@@ -1223,9 +1201,9 @@ def draw_circuit():
                             found = False
                             for neighbor in neighbors:
                                 if (
-                                        neighbor != direction_neighbor
-                                        and neighbor[0] != direction_neighbor[0]
-                                        and neighbor[1] != direction_neighbor[1]
+                                    neighbor != direction_neighbor
+                                    and neighbor[0] != direction_neighbor[0]
+                                    and neighbor[1] != direction_neighbor[1]
                                 ):
                                     found = True
                                     if direction_neighbor == up:
@@ -1310,7 +1288,7 @@ def delete_item():
 
 def add_item(code):
     global x, y, circuit, circuit_objects, circuit_objects_list
-    # print(x, y)
+    #print(x, y)
     if code == 0:
         item = ti(circuit, (y, x))
         if item == 0:
@@ -1386,7 +1364,7 @@ def left_click(event):
         return
     old_x, old_y = x, y
     item = int(circuit[y][x])
-    # print(item, ti(circuit_objects, (x, y)))
+    #print(item, ti(circuit_objects, (x, y)))
 
     # If mode is 0, select tool
     if mode == 0:
@@ -1411,21 +1389,19 @@ def left_click(event):
             battery_dialog = BatteryDialog(
                 root, obj.voltage, obj.flipped, event.x_root, event.y_root)
             root.wait_window(battery_dialog.top)
-            # print("voltage: ", gui.voltage)
+            #print("voltage: ", gui.voltage)
             obj.flipped = flip
             obj.voltage = voltage
         # Allow to change resistor
         elif item == 6:
             obj = circuit_objects[y][x]
-            print(circuit_objects[y][x])
             resistance_dialog = ResistorDialog(
                 root, obj.resistance, obj.flipped, event.x_root, event.y_root)
             root.wait_window(resistance_dialog.top)
-            # print("voltage: ", gui.resistance)
+            #print("voltage: ", gui.resistance)
             obj.flipped = flip
             obj.resistance = resistance
-            circuit_objects[y][x] = obj
-            print(obj, circuit_objects[y][x])
+            print(obj)
 
         elif item == 7:
             print(ti(circuit_objects, (y, x)).charge)
@@ -1433,8 +1409,8 @@ def left_click(event):
             capacitance_dialog = CapacitorDialog(
                 root, obj.capacitance, obj.flipped, event.x_root, event.y_root)
             root.wait_window(capacitance_dialog.top)
-            # print("capacitance: ", gui.capacitance)
-            # print("charge:", obj.charge)
+            #print("capacitance: ", gui.capacitance)
+            #print("charge:", obj.charge)
             obj.flipped = flip
             obj.capacitance = capacitance
         # print("clicked at", x, y)
@@ -1447,13 +1423,13 @@ def left_click(event):
 # draw the grid
 def handle_key(event):
     global circuit_objects, x, y
-    # print(event.x, event.y)
-    # print(event.x_root, event.y_root)
-    # x, y = (event.x // 20, event.y // 20)
+    #print(event.x, event.y)
+    #print(event.x_root, event.y_root)
+    #x, y = (event.x // 20, event.y // 20)
 
     # take care of inconsitencies with mouse position
-    # x, y = (circuit_view.winfo_pointerx() // 20, circuit_view.winfo_pointery() // 20)
-    # print(x, y)
+    #x, y = (circuit_view.winfo_pointerx() // 20, circuit_view.winfo_pointery() // 20)
+    #print(x, y)
     if event.char == "r":
         add_resistor()
     elif event.char == "b":
@@ -1532,6 +1508,7 @@ circuit_view.bind("<Button-3>", right_click)
 
 circuit_view.bind_all("<KeyRelease>", handle_key)
 
+
 R_eq = 0
 I_tot = 0
 overview = ttk.LabelFrame(options_view, text="Overview")
@@ -1542,6 +1519,7 @@ label2 = ttk.Label(overview, text=f"Total Current: {I_tot}")
 label2.grid(
     row=1, column=0, sticky="w"
 )
+
 
 builder_button_padding = (5, 5)
 builder = ttk.LabelFrame(options_view, text="Builder")
@@ -1571,6 +1549,7 @@ capacitor_button = wire_button = ttk.Button(builder, image=capacitor_imgs['horiz
 
 labelframe = ttk.LabelFrame(options_view, text="This is a LabelFrame").grid(
     row=3, column=0, sticky='w')
+
 
 dir = 1
 cw = bool(dir)
@@ -1645,32 +1624,18 @@ def run_circuit():
         end,
         ti(circuit, end),
     )
-    raw_paths = get_path(origin, current_path, already_visited, end)
+    paths = get_path(origin, current_path, already_visited, end)
 
     # New approach
 
     # Iterate through each step, checking the item at step
+    x_path = []
+    circuit_objs = []
 
     skip_until = False
     target = (0, 0)
-    if isinstance(raw_paths[0], tuple):
-        raw_paths = [raw_paths]
-    paths = [path for path in raw_paths if end in path]
-    paths_intersection = []
-    if len(paths) > 1:
-        for item in paths[0]:
-            add = True
-            for path in paths[1:]:
-                if item not in path:
-                    add = False
-            if add:
-                paths_intersection.append(item)
-    print_path(list(paths_intersection))
-    print("intersection: ", paths_intersection)
-    # construct a string from this to get the segments,
-    x_path = [paths[0][0]]
-    circuit_objs = []
-
+    if isinstance(paths[0], tuple):
+        paths = [paths]
     for i, step in enumerate(paths[0][1:]):
         if skip_until and step != target:
             continue
@@ -1679,10 +1644,8 @@ def run_circuit():
         item = ti(circuit, step)
         x_path.append(step)
 
-        # get number of neighbors
-        possibilities = get_possibilities(step[0], step[1])
-        neighbors = [neighbor for neighbor in get_neighbors(circuit, possibilities) if neighbor not in x_path]
-        print(len(neighbors))
+        # print(item)
+
         # Check for resistor:
         if item == 6:
             circuit_objs.append(ti(circuit_objects, step))
@@ -1691,20 +1654,11 @@ def run_circuit():
             circuit_objs.append(ti(circuit_objects, step))
 
         # Check for node:
-
-        elif len(neighbors) > 1:
+        elif item == 2:
             previous_item = ti(circuit, paths[0][i])
             # Generate new paths starting at this node:
-            # find next path element that is in intersection
-            end = paths_intersection[paths_intersection.index(step) + 1]
-            print(end)
 
-            raw_new_paths = get_path(step, [], [paths[0][i]], end)
-            new_paths = [new_path for new_path in raw_new_paths if end in new_path]
-            for p in new_paths:
-                print(p)
-                for s in p:
-                    x_path.append(s)
+            new_paths = get_path(step, [], [paths[0][i]], end)
 
             # print_path(new_path)
             # Find the end, when num of input and output nodes are equal
@@ -1712,7 +1666,6 @@ def run_circuit():
             num_output = 0
             # print("newpaths0")
             # print_path(new_paths[0])
-            """
             for new_step in new_paths[0]:
 
                 new_item = ti(circuit, new_step)
@@ -1731,11 +1684,11 @@ def run_circuit():
                     shortened_paths.append(
                         new_path[: new_path.index(ending) + 1])
                     # print_path(new_path[:new_path.index(ending)+1])
-            # print(shortened_paths)"""
+            # print(shortened_paths)
 
-            circuit_objs.append(ParallelCell(new_paths))
+            circuit_objs.append(ParallelCell(shortened_paths))
             skip_until = True
-            target = end
+            target = ending
 
     # print_path(x_path)
     print("circuit_items", circuit_objs)
@@ -1743,7 +1696,7 @@ def run_circuit():
     circuit_resistance = sum([x.resistance for x in circuit_objs])
     print("resistance", circuit_resistance)
     circuit_objs = CircuitSegment(circuit_objs)
-    # R_eq = sum([x.resistance for x in circuit_objs])
+    #R_eq = sum([x.resistance for x in circuit_objs])
     R_eq = circuit_objs.resistance
     V_tot = ti(circuit_objects, end).voltage
     I_tot = V_tot / R_eq
@@ -1775,6 +1728,9 @@ def run_circuit():
             capacitor.times.append(current_time)
             capacitor.charges.append(current_charge)
 
+
+
+
     if len(capacitors) > 0:
         fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
 
@@ -1790,8 +1746,9 @@ def run_circuit():
                 ax.plot(x_new, y_new)
         plt.show()
 
-    # EXPERIMENTAL
-    things = {'wire': [], 'input': [], 'output': [], 'resistor': [], 'battery': [], 'capacitor': []}
+
+    #EXPERIMENTAL
+    things = {'wire':[], 'input':[], 'output':[], 'resistor':[], 'battery':[], 'capacitor':[]}
     for item in circuit_objects_list:
         if isinstance(item, Wire):
             things['wire'].append(item)
@@ -1813,6 +1770,10 @@ def run_circuit():
 
     print(things)
 
+
+
+
+
     print("total_current", I_tot)
     print(R_eq)
 
@@ -1829,6 +1790,7 @@ def toggle_labels():
 
 labels_button = ttk.Checkbutton(
     options_view, text="Hide Labels", command=toggle_labels).grid(row=6, sticky=W)
+
 
 clear_button = ttk.Button(options_view, text="Clear", command=clear_circuit).grid(
     row=5, column=0, pady=(0, padding[1])
