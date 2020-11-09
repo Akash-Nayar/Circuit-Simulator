@@ -700,7 +700,7 @@ class ParallelCell(CircuitItem):
         self.origin = paths[0][0]
         self.end = paths[0][-1]
         self._voltage = 0
-        print('self.end', self.end)
+        #print('self.end', self.end)
         # Check paths for parallels within
 
         # 2D, each row is a path, each column represent object
@@ -712,7 +712,7 @@ class ParallelCell(CircuitItem):
             # Check to see if current path contains one of the new nodes, disregard if so
 
             #
-            print_circuit(path)
+            #print_circuit(path)
             if any(node in new_nodes for node in path):
                 continue
 
@@ -727,7 +727,7 @@ class ParallelCell(CircuitItem):
                 possibilities = get_possibilities(step[0], step[1])
                 neighbors = [neighbor for neighbor in get_neighbors(
                     circuit, possibilities) if neighbor not in x_path]
-                print('step: ', step, 'neighbors:', neighbors)
+                #print('step: ', step, 'neighbors:', neighbors)
                 if len(neighbors) > 1:
                     # add the new node, continue
                     new_nodes.append(step)
@@ -1578,8 +1578,8 @@ def run_circuit():
                     add = False
             if add:
                 paths_intersection.append(item)
-    print_path(list(paths_intersection))
-    print("intersection: ", paths_intersection)
+    #print_path(list(paths_intersection))
+    #print("intersection: ", paths_intersection)
     # construct a string from this to get the segments,
     x_path = [paths[0][0]]
     circuit_objs = []
