@@ -422,7 +422,14 @@ class CircuitItem:
                 ],
             )
         except IndexError:
-            pass
+            circuit_view.create_image(
+                j * 20,
+                i * 20,
+                anchor=NW,
+                image=self.imgs[state if state is not None else self.default_state][
+                    direction if direction is not None else self.default_direction
+                ],
+            )
 
 
 class CircuitSegment(CircuitItem):
@@ -712,7 +719,7 @@ class ParallelCell(CircuitItem):
             # Check to see if current path contains one of the new nodes, disregard if so
 
             #
-            #print_circuit(path)
+            # print_circuit(path)
             if any(node in new_nodes for node in path):
                 continue
 
@@ -1162,6 +1169,9 @@ def draw_circuit():
                         elif item == 3:
                             obj.draw(i, j)
 
+                        else:
+                            obj.draw(i, j)
+
                 elif len(neighbors) == 3:
                     if item in [1, 2]:
                         for possibility in possibilities:
@@ -1180,8 +1190,14 @@ def draw_circuit():
                                              direction="right")
                                 break
 
+                    else:
+                        obj.draw(i, j)
+
                 else:
-                    obj.draw(i, j, state="cross", direction="any")
+                    try:
+                        obj.draw(i, j, state="cross", direction="any")
+                    except TypeError:
+                        obj.draw(i, j)
 
     draw_grid()
 
@@ -1231,40 +1247,55 @@ def delete_item():
     add_item(0)
 
 
+# same as delete_item but doesn't redraw
+def soft_delete():
+    global x, y, circuit, circuit_objects, circuit_objects_list
+    # print(x, y)
+    item = ti(circuit, (y, x))
+    if item == 0:
+        return
+    if item == 7:
+        print(len(capacitors))
+        id = ti(circuit_objects, (y, x)).id
+        for i, capacitor in enumerate(capacitors):
+            if capacitor.id == id:
+                capacitors.pop(i)
+                break
+        print('len cap: ', len(capacitors))
+    # remove from circuit obejects list
+    obj = ti(circuit_objects, (y, x))
+    for i, item in enumerate(circuit_objects_list):
+        if item.uid == obj.uid:
+            circuit_objects_list.pop(i)
+            break
+
+    circuit[y][x] = 0
+    circuit_objects[y][x] = 0
+
+
 def add_item(code):
     global x, y, circuit, circuit_objects, circuit_objects_list
     # print(x, y)
     if code == 0:
-        item = ti(circuit, (y, x))
-        if item == 0:
-            return
-        if item == 7:
-            print(len(capacitors))
-            id = ti(circuit_objects, (y, x)).id
-            for i, capacitor in enumerate(capacitors):
-                if capacitor.id == id:
-                    capacitors.pop(i)
-                    break
-            print(len(capacitors))
-        # remove from circuit obejects list
-        obj = ti(circuit_objects, (y, x))
-        for i, item in enumerate(circuit_objects_list):
-            if item.uid == obj.uid:
-                circuit_objects_list.pop(i)
-                break
-
+        soft_delete()
         new_obj = 0
     elif code == 1:
+        soft_delete()
         new_obj = Wire()
     elif code == 2:
+        soft_delete()
         new_obj = InputNode()
     elif int(code) == 3:
+        soft_delete()
         new_obj = OutputNode(direction=round(code % 1, 2))
     elif code == 5:
+        soft_delete()
         new_obj = Battery(voltage=15.0)
     elif code == 6:
+        soft_delete()
         new_obj = Resistor(10.0)
     elif code == 7:
+        soft_delete()
         new_obj = Capacitor(10.0)
         capacitors.append(new_obj)
 
@@ -1578,7 +1609,7 @@ def run_circuit():
                     add = False
             if add:
                 paths_intersection.append(item)
-    #print_path(list(paths_intersection))
+    # print_path(list(paths_intersection))
     #print("intersection: ", paths_intersection)
     # construct a string from this to get the segments,
     x_path = [paths[0][0]]
@@ -1623,7 +1654,28 @@ def run_circuit():
 
     # print_path(x_path)
     print("circuit_items", circuit_objs)
+    # EXPERIMENTAL
+    things = {'wire': [], 'input': [], 'output': [],
+              'resistor': [], 'battery': [], 'capacitor': []}
 
+    for item in circuit_objects_list:
+        if isinstance(item, Wire):
+            things['wire'].append(item)
+
+        elif isinstance(item, InputNode):
+            things['input'].append(item)
+
+        elif isinstance(item, OutputNode):
+            things['output'].append(item)
+
+        elif isinstance(item, Resistor):
+            things['resistor'].append(item)
+
+        elif isinstance(item, Battery):
+            things['battery'].append(item)
+
+        elif isinstance(item, Capacitor):
+            things['capacitor'].append(item)
     circuit_resistance = sum([x.resistance for x in circuit_objs])
     print("resistance", circuit_resistance)
     circuit_objs = CircuitSegment(circuit_objs)
@@ -1647,6 +1699,7 @@ def run_circuit():
 
     # Set each capacitor in series to have a charge of Q
     circuit_objs.charge = Q
+    capacitors = things['capacitor']
     for capacitor in capacitors:
         capacitor.times = []
         capacitor.charges = []
@@ -1674,28 +1727,6 @@ def run_circuit():
             except TypeError:
                 ax.plot(x_new, y_new)
         plt.show()
-
-    # EXPERIMENTAL
-    things = {'wire': [], 'input': [], 'output': [],
-              'resistor': [], 'battery': [], 'capacitor': []}
-    for item in circuit_objects_list:
-        if isinstance(item, Wire):
-            things['wire'].append(item)
-
-        elif isinstance(item, InputNode):
-            things['input'].append(item)
-
-        elif isinstance(item, OutputNode):
-            things['output'].append(item)
-
-        elif isinstance(item, Resistor):
-            things['resistor'].append(item)
-
-        elif isinstance(item, Battery):
-            things['battery'].append(item)
-
-        elif isinstance(item, Capacitor):
-            things['capacitor'].append(item)
 
     print(things)
 
