@@ -1699,8 +1699,8 @@ def run_circuit():
 
     print(things)
 
-    print("total_current", I_tot)
-    print(R_eq)
+    print("total current: ", I_tot, "A")
+    print("equivalent resistance: ", R_eq, "Ω")
 
 
 run_button = ttk.Button(options_view, text="Run",
