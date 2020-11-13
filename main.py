@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageTk, ImageOps
 from scipy import interpolate
 import numpy as np
+import sys
 
 # Colors
 color1 = "#F7F7F8"
@@ -353,13 +354,13 @@ class CircuitItem:
     default_direction = None
     uid = 1
 
-    def __init__(self, voltage=0, resistance=0, current=0, capacitance=0, charge=0):
+    def __init__(self, voltage=0, resistance=0, current=0, capacitance=0, charge=0, flipped=False):
         self._voltage = voltage
         self._resistance = resistance
         self._current = current
         self._capacitance = capacitance
         self._charge = charge
-        self.flipped = False
+        self.flipped = flipped
         self.uid = CircuitItem.uid
         CircuitItem.uid += 1
 
@@ -489,6 +490,9 @@ class Wire(CircuitItem):
     def __init__(self, resistance=0):
         super().__init__(resistance=resistance)
 
+    def get_data(self):
+        return {'resistance': self.resistance, 'flipped': self.flipped}
+
 
 def get_direction(dir):
     if dir == 0:
@@ -549,8 +553,8 @@ class Resistor(CircuitItem):
 
     id = 1
 
-    def __init__(self, resistance):
-        super().__init__(resistance=resistance)
+    def __init__(self, resistance, flipped=False):
+        super().__init__(resistance=resistance, flipped=flipped)
         self.id = Resistor.id
         Resistor.id += 1
 
@@ -593,13 +597,16 @@ class Resistor(CircuitItem):
         except IndexError:
             pass
 
+    def get_data(self):
+        return {'resistance': self.resistance, 'flipped': self.flipped}
+
 
 class Battery(CircuitItem):
     default_direction = "left"
     imgs = battery_imgs
 
-    def __init__(self, voltage):
-        super().__init__(voltage=voltage)
+    def __init__(self, voltage, flipped=False):
+        super().__init__(voltage=voltage, flipped=flipped)
 
     def draw(self, i, j, direction=None):
 
@@ -644,6 +651,9 @@ class Battery(CircuitItem):
     def __repr__(self):
         return f"Battery({self.voltage})"
 
+    def get_data(self):
+        return {'voltage': self.voltage, 'flipped': self.flipped}
+
 
 class Capacitor(CircuitItem):
     id = 1
@@ -651,8 +661,8 @@ class Capacitor(CircuitItem):
     imgs = capacitor_imgs
     default_direction = "horizontal"
 
-    def __init__(self, capacitance):
-        super().__init__(capacitance=capacitance)
+    def __init__(self, capacitance, flipped=False):
+        super().__init__(capacitance=capacitance, flipped=flipped)
         self.times = []
         self.charges = []
         self._tau = 0.0
@@ -698,6 +708,9 @@ class Capacitor(CircuitItem):
             )
         except IndexError:
             pass
+
+    def get_data(self):
+        return {'capacitance': self.capacitance, 'flipped': self.flipped}
 
 
 class ParallelCell(CircuitItem):
@@ -1203,17 +1216,23 @@ def draw_circuit():
 
 
 def clear_circuit():
-    global circuit, circuit_objects, circuit_objects_list, capacitors
+    global circuit, circuit_objects, circuit_objects_list, capacitors, changes, current_change, index
     circuit = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects_list = []
     capacitors = []
-
+    changes = []
+    current_change = []
+    index = -1
     draw_circuit()
 
 
 def key(event):
     print("pressed", repr(event.char))
+
+
+def gen_change(old_code, old_data, new_code, new_data, x, y):
+    return {'old_code': old_code, 'old_data': old_data, 'new_code': new_code, 'new_data': new_data, 'x': x, 'y': y}
 
 
 x, y = (0, 0)
@@ -1247,6 +1266,10 @@ def delete_item():
     add_item(0)
 
 
+def soft_add_specific_item(code, item):
+    soft_add_item(code, item)
+
+
 # same as delete_item but doesn't redraw
 def soft_delete():
     global x, y, circuit, circuit_objects, circuit_objects_list
@@ -1273,10 +1296,15 @@ def soft_delete():
     circuit_objects[y][x] = 0
 
 
-def add_item(code):
-    global x, y, circuit, circuit_objects, circuit_objects_list
+def soft_add_item(code, item=None):
+    global x, y, circuit, circuit_objects, circuit_objects_list, changes, current_change
     # print(x, y)
-    if code == 0:
+    old_code = circuit[y][x]
+    old_data = circuit_objects[y][x] if circuit_objects[y][x] == 0 else circuit_objects[y][x].get_data(
+    )
+    if item is not None:
+        new_obj = item
+    elif code == 0:
         soft_delete()
         new_obj = 0
     elif code == 1:
@@ -1301,8 +1329,18 @@ def add_item(code):
 
     circuit[y][x] = code
     circuit_objects[y][x] = new_obj
+    new_data = 0 if new_obj == 0 else new_obj.get_data()
+
+    if item is None:
+        current_change.append(gen_change(
+            old_code, old_data, code, new_data, x, y))
+
     if new_obj != 0:
         circuit_objects_list.append(new_obj)
+
+
+def add_item(code):
+    soft_add_item(code)
     draw_circuit()
 
 
@@ -1331,8 +1369,14 @@ username = ""
 mode = 0
 
 
+changes = []
+index = -1
+
+current_change = []
+
+
 def left_click(event):
-    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode
+    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index
     x, y = (event.x // 20, event.y // 20)
     if x not in list(range(circuit_width)) or y not in list(range(circuit_height)):
         return
@@ -1340,27 +1384,17 @@ def left_click(event):
         return
     old_x, old_y = x, y
     item = int(circuit[y][x])
-    # print(item, ti(circuit_objects, (x, y)))
 
     # If mode is 0, select tool
     if mode == 0:
-        if item == 3:
-            real_item = circuit[y][x]
-            if real_item == 3.0:
-                circuit_objects[y][x] = OutputNode(0.5)
-                circuit[y][x] = 3.5
-            elif real_item == 3.5:
-                circuit_objects[y][x] = OutputNode(0.25)
-                circuit[y][x] = 3.25
-            elif real_item == 3.25:
-                circuit_objects[y][x] = OutputNode(0.75)
-                circuit[y][x] = 3.75
-            else:
-                circuit_objects[y][x] = OutputNode(0.0)
-                circuit[y][x] = 3.0
-
+        if item in [0, 1]:
+            return
+        old_code = item
+        new_code = item
+        old_data = circuit_objects[y][x].get_data()
+        coords = x, y
         # Allow to change battery voltage:
-        elif item == 5:
+        if item == 5:
             obj = circuit_objects[y][x]
             battery_dialog = BatteryDialog(
                 root, obj.voltage, obj.flipped, event.x_root, event.y_root)
@@ -1389,9 +1423,15 @@ def left_click(event):
             root.wait_window(capacitance_dialog.top)
             obj.flipped = flip
             obj.capacitance = capacitance
+
+        new_data = obj.get_data()
+        changes.append(
+            [gen_change(old_code, old_data, new_code, new_data, coords[0], coords[1])])
+        index += 1
+        # print(changes)
     else:
         add_item(mode if mode != 4 else 0)
-
+    # current_change.append('new')
     draw_circuit()
 
 
@@ -1413,8 +1453,81 @@ def handle_key(event):
 
 
 def reset(event):
-    global old_x, old_y
+    global old_x, old_y, changes, current_change, index
     old_x, old_y = None, None
+    print('size of changes: ', sys.getsizeof(changes))
+    if current_change != []:
+        if index != len(changes)-1:
+            changes = changes[:index+1]
+        changes.append(current_change)
+        index += 1
+        current_change = []
+    # print(changes)
+
+
+def undo(event):
+    do_change(event)
+
+
+def redo(event):
+    do_change(event, undo=False)
+
+
+def do_change(event, undo=True):
+    global changes, current_change, index, x, y
+
+    # print(changes[index])
+    if not undo:
+        index += 1
+        if index > len(changes):
+            index -= 1
+            return
+    try:
+        change = changes[index]
+
+    except IndexError:
+        if not undo:
+            index -= 1
+        return
+    if undo:
+        index -= 1
+    if index < -1:
+        index += 1
+        return
+    for bit in change:
+        if undo:
+            code = bit['old_code']
+            data = bit['old_data']
+        else:
+            code = bit['new_code']
+            data = bit['new_data']
+        x, y = bit['x'], bit['y']
+        # if it was 0, delete what's there
+        if code == 0:
+            soft_delete()
+            continue
+        flipped = data['flipped']
+        if code == 1:
+            resistance = data['resistance']
+            wire = Wire(resistance)
+            soft_add_specific_item(1, wire)
+
+        elif code == 5:
+            voltage = data['voltage']
+            battery = Battery(voltage, flipped=flipped)
+            soft_add_specific_item(5, battery)
+
+        elif code == 6:
+            resistance = data['resistance']
+            resistor = Resistor(resistance, flipped=flipped)
+            soft_add_specific_item(6, resistor)
+
+        elif code == 7:
+            capacitance = data['capacitance']
+            capacitor = Capacitor(capacitance, flipped=flipped)
+            soft_add_specific_item(7, capacitor)
+    draw_circuit()
+    reset(event)
 
 
 def select_wire():
@@ -1464,6 +1577,8 @@ def update_pos(event):
 
 
 circuit_view.bind("<Motion>", update_pos)
+circuit_view.bind_all("<Control-Key-y>", redo)
+circuit_view.bind_all("<Control-Key-z>", undo)
 circuit_view.bind("<Key>", key)
 circuit_view.bind("<B1-Motion>", left_click)
 circuit_view.bind("<Button-1>", left_click)
