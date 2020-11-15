@@ -107,7 +107,7 @@ circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
 circuit_objects_list = []
 
 capacitors = []
-
+garbage = []
 draw_labels = True
 
 
@@ -363,6 +363,7 @@ class CircuitItem:
         self._charge = charge
         self.flipped = flipped
         self.uid = CircuitItem.uid
+        self.drawing = []
         CircuitItem.uid += 1
 
     @property
@@ -414,24 +415,31 @@ class CircuitItem:
             self.voltage = q / self.capacitance
 
     def draw(self, i, j, direction=None, state=None):
+        for component in self.drawing:
+            circuit_view.delete(component)
+        self.drawing = []
         try:
-            circuit_view.create_image(
+            self.drawing.append(circuit_view.create_image(
                 j * 20,
                 i * 20,
                 anchor=NW,
                 image=self.imgs[state if state is not None else self.default_state][
                     direction if direction is not None else self.default_direction
                 ],
-            )
+            ))
         except IndexError:
-            circuit_view.create_image(
+            self.drawing.append(circuit_view.create_image(
                 j * 20,
                 i * 20,
                 anchor=NW,
                 image=self.imgs[state if state is not None else self.default_state][
                     direction if direction is not None else self.default_direction
                 ],
-            )
+            ))
+
+    def __del__(self):
+        for component in self.drawing:
+            circuit_view.delete(component)
 
 
 class CircuitSegment(CircuitItem):
@@ -494,58 +502,8 @@ class Wire(CircuitItem):
     def get_data(self):
         return {'resistance': self.resistance, 'flipped': self.flipped}
 
-
-def get_direction(dir):
-    if dir == 0:
-        return "up"
-    elif dir == 0.25:
-        return "down"
-    elif dir == 0.5:
-        return "right"
-    else:
-        return "left"
-
-
-class InputNode(Wire):
-    imgs = {"junction": input_node_junction_imgs,
-            "cross": input_node_cross_imgs}
-
-    default_state = "junction"
-    default_direction = "right"
-
-    def __init__(self):
-        super().__init__(self)
-
-
-class OutputNode(Wire):
-    imgs = {
-        "corner_left": output_node_corner_left_imgs,
-        "corner_right": output_node_corner_right_imgs,
-        "junction": output_node_junction_imgs,
-        "cross": output_node_cross_imgs,
-    }
-
-    default_state = "junction"
-
-    def __init__(self, direction):
-        super().__init__()
-        self.default_direction = get_direction(direction)
-
-    def draw(self, i, j, direction=None, state=None):
-        print(state)
-        try:
-            circuit_view.create_image(
-                j * 20,
-                i * 20,
-                anchor=NW,
-                image=self.imgs[state if state is not None else self.default_state][
-                    direction
-                    if direction is not None and direction != "any"
-                    else self.default_direction
-                ],
-            )
-        except IndexError:
-            pass
+    def __str__(self):
+        return f'Wire(resistance={self.resistance})'
 
 
 class Resistor(CircuitItem):
@@ -566,6 +524,9 @@ class Resistor(CircuitItem):
         global draw_labels
 
         direction = self.default_direction if direction is None else direction
+        for component in self.drawing:
+            circuit_view.delete(component)
+        self.drawing = []
         if draw_labels:
             if self.flipped:
                 multiplier = -3
@@ -575,26 +536,26 @@ class Resistor(CircuitItem):
                 angle_offset = 0
             if direction == "horizontal":
                 # Draw labels above
-                circuit_view.create_text(
+                self.drawing.append(circuit_view.create_text(
                     j * 20 + 10,
                     i * 20 - multiplier * 10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
                     angle=angle_offset,
                     fill='white' if style_str == 'awdark' else 'black'
-                )
+                ))
             else:
-                circuit_view.create_text(
+                self.drawing.append(circuit_view.create_text(
                     j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
                     angle=angle_offset + 90,
                     fill='white' if style_str == 'awdark' else 'black'
-                )
+                ))
 
         try:
-            circuit_view.create_image(
+            self.drawing.append(circuit_view.create_image(
                 j * 20, i * 20, anchor=NW, image=self.imgs[direction]
-            )
+            ))
         except IndexError:
             pass
 
@@ -612,6 +573,9 @@ class Battery(CircuitItem):
     def draw(self, i, j, direction=None):
 
         direction = self.default_direction if direction is None else direction
+        for component in self.drawing:
+            circuit_view.delete(component)
+        self.drawing = []
         if draw_labels:
             if self.flipped:
                 multiplier = -3
@@ -621,31 +585,31 @@ class Battery(CircuitItem):
                 angle_offset = 0
             if direction in ['left', 'right']:
                 # Draw labels above
-                circuit_view.create_text(
+                self.drawing.append(circuit_view.create_text(
                     j * 20 + 10,
                     i * 20 - multiplier * 10,
                     text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
                     angle=angle_offset,
                     fill='white' if style_str == 'awdark' else 'black'
-                )
+                ))
             else:
-                circuit_view.create_text(
+                self.drawing.append(circuit_view.create_text(
                     j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
                     angle=angle_offset + 90,
                     fill='white' if style_str == 'awdark' else 'black'
-                )
+                ))
 
         try:
-            circuit_view.create_image(
+            self.drawing.append(circuit_view.create_image(
                 j * 20,
                 i * 20,
                 anchor=NW,
                 image=self.imgs[
                     self.default_direction if direction is None else direction
                 ],
-            )
+            ))
         except IndexError:
             pass
 
@@ -678,6 +642,9 @@ class Capacitor(CircuitItem):
         global draw_labels
 
         direction = self.default_direction if direction is None else direction
+        for component in self.drawing:
+            circuit_view.delete(component)
+        self.drawing = []
         if draw_labels:
             if self.flipped:
                 multiplier = -3
@@ -687,26 +654,26 @@ class Capacitor(CircuitItem):
                 angle_offset = 0
             if direction == "horizontal":
                 # Draw labels above
-                circuit_view.create_text(
+                self.drawing.append(circuit_view.create_text(
                     j * 20 + 10,
                     i * 20 - multiplier * 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
                     angle=angle_offset,
                     fill='white' if style_str == 'awdark' else 'black'
-                )
+                ))
             else:
-                circuit_view.create_text(
+                self.drawing.append(circuit_view.create_text(
                     j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
                     angle=angle_offset + 90,
                     fill='white' if style_str == 'awdark' else 'black'
-                )
+                ))
 
         try:
-            circuit_view.create_image(
+            self.drawing.append(circuit_view.create_image(
                 j * 20, i * 20, anchor=NW, image=self.imgs[direction]
-            )
+            ))
         except IndexError:
             pass
 
@@ -1047,179 +1014,198 @@ def get_neighbors(arr, possibilities):
     return neighbors
 
 
-def draw_circuit():
+def draw_item(i, j, surrounding=False):
     global circuit, circuit_objects
     start = time.time()
-    circuit_view.delete(ALL)
+
     # draw_grid()
+    item = ti(circuit, (i, j))
 
-    for i, row in enumerate(circuit):
-        for j, item in enumerate([int(x) for x in row]):
-            if item == 0:
-                continue
+    obj = circuit_objects[i][j]
+    # for component in obj.drawing:
+    # circuit_view.delete(component)
 
-            elif item in [1, 2, 3, 4, 5, 6, 7]:
-                obj = circuit_objects[i][j]
-                # Check for neighbors
-                possibilities = get_possibilities(i, j)
-                up, down, right, left = possibilities
-                neighbors = get_neighbors(circuit, possibilities)
-                if len(neighbors) == 0:
-                    obj.draw(i, j)
-                elif len(neighbors) == 1:
-                    # if on same row, horizontal
-                    if item == 3:
-                        obj.draw(i, j)
-                        continue
-                    if neighbors[0][0] == i:
-                        if item not in [2, 5]:
-                            obj.draw(i, j, direction="horizontal")
+    # Check for neighbors
+    possibilities = get_possibilities(i, j)
+    up, down, right, left = possibilities
+    neighbors = get_neighbors(circuit, possibilities)
+    if surrounding:
+        for neighbor in neighbors:
+            draw_item(neighbor[0], neighbor[1])
+    if item == 0:
+        return
 
-                        # input node - point in direction of neighbor
-                        elif item == 2:
-                            if right in neighbors:
-                                obj.draw(i, j, state="junction",
-                                         direction="left")
-                            else:
-                                obj.draw(i, j, state="junction",
-                                         direction="right")
-                        elif item == 5:
-                            if dir == 1:
-                                obj.draw(i, j, direction="right")
-                            else:
-                                obj.draw(i, j, direction="left")
-                        # print(type(obj), "horizontal")
-                    else:
-                        if item not in [2, 3, 5]:
-                            obj.draw(i, j, direction="vertical")
+    if len(neighbors) == 0:
+        obj.draw(i, j)
+    elif len(neighbors) == 1:
+        # if on same row, horizontal
+        if neighbors[0][0] == i:
+            if item not in [2, 5]:
+                obj.draw(i, j, direction="horizontal")
 
-                        # input node - point in direction of neigbor
-                        elif item == 2:
-                            if up in neighbors:
-                                obj.draw(i, j, state="junction",
-                                         direction="down")
-                            else:
-                                obj.draw(i, j, state="junction",
-                                         direction="up")
-                        elif item == 5:
-                            if dir == 1:
-                                obj.draw(i, j, direction="down")
-                            else:
-                                obj.draw(i, j, direction="up")
-                elif len(neighbors) == 2:
-                    # Either straight or corner piece
-
-                    # If straight, check to see if either x or y of both are equal:
-                    # for output node, unless neightbor[0] is not opposite direction, just draw, else cross
-                    if neighbors[0][0] == neighbors[1][0]:
-                        # same row - horizontal
-                        if item not in [2, 3, 5]:
-                            obj.draw(i, j, direction="horizontal")
-                        # input node - point up
-                        elif item == 2:
-                            obj.draw(i, j, state="junction", direction="up")
-
-                        elif item == 3:
-                            obj.draw(i, j, state="cross")
-                        elif item == 5:
-                            if dir == 1:
-                                obj.draw(i, j, direction="right")
-                            else:
-                                obj.draw(i, j, direction="left")
-
-                    elif neighbors[0][1] == neighbors[1][1]:
-                        # same column - vertical
-                        if item not in [2, 3, 5]:
-                            obj.draw(i, j, direction="vertical")
-                        # input node - point right
-                        elif item == 2:
-                            obj.draw(i, j, state="junction", direction="right")
-                        elif item == 3:
-                            obj.draw(i, j, state="cross")
-                        elif item == 5:
-                            if dir == 1:
-                                obj.draw(i, j, direction="down")
-                            else:
-                                obj.draw(i, j, direction="up")
-
-                    else:
-                        # corner
-                        if item == 1:
-                            if down in neighbors:
-                                # down and right - default
-                                if right in neighbors:
-                                    # right down
-                                    obj.draw(
-                                        i, j, state="corner", direction="right_down"
-                                    )
-                                else:
-                                    # down left
-                                    obj.draw(i, j, state="corner",
-                                             direction="up_right")
-                            else:
-                                # down and right - default
-                                if right in neighbors:
-                                    # upright
-                                    obj.draw(
-                                        i, j, state="corner", direction="down_left"
-                                    )
-                                else:
-                                    # left-up left
-                                    obj.draw(i, j, state="corner",
-                                             direction="left_up")
-                        elif item == 2:
-                            if up == neighbors[0]:
-                                obj.draw(i, j, state="junction",
-                                         direction="down")
-                            elif down == neighbors[0]:
-                                obj.draw(i, j, state="junction",
-                                         direction="up")
-                            elif right == neighbors[0]:
-                                obj.draw(i, j, state="junction",
-                                         direction="left")
-                            else:
-                                obj.draw(i, j, state="junction",
-                                         direction="right")
-
-                        elif item == 3:
-                            obj.draw(i, j)
-
-                        else:
-                            obj.draw(i, j)
-
-                elif len(neighbors) == 3:
-                    if item in [1, 2]:
-                        for possibility in possibilities:
-                            if possibility not in neighbors:
-                                if possibility == down:
-                                    obj.draw(i, j, state="junction",
-                                             direction="down")
-                                elif possibility == left:
-                                    obj.draw(i, j, state="junction",
-                                             direction="left")
-                                elif possibility == up:
-                                    obj.draw(i, j, state="junction",
-                                             direction="up")
-                                else:
-                                    obj.draw(i, j, state="junction",
-                                             direction="right")
-                                break
-
-                    else:
-                        obj.draw(i, j)
-
+            # input node - point in direction of neighbor
+            elif item == 2:
+                if right in neighbors:
+                    obj.draw(i, j, state="junction",
+                             direction="left")
                 else:
-                    try:
-                        obj.draw(i, j, state="cross", direction="any")
-                    except TypeError:
-                        obj.draw(i, j)
-    print('iter time w/o grid: ', time.time() - start)
-    draw_grid()
-    print('iter time: ',time.time()-start)
+                    obj.draw(i, j, state="junction",
+                             direction="right")
+            elif item == 5:
+                if dir == 1:
+                    obj.draw(i, j, direction="right")
+                else:
+                    obj.draw(i, j, direction="left")
+            # print(type(obj), "horizontal")
+        else:
+            if item not in [2, 3, 5]:
+                obj.draw(i, j, direction="vertical")
+
+            # input node - point in direction of neigbor
+            elif item == 2:
+                if up in neighbors:
+                    obj.draw(i, j, state="junction",
+                             direction="down")
+                else:
+                    obj.draw(i, j, state="junction",
+                             direction="up")
+            elif item == 5:
+                if dir == 1:
+                    obj.draw(i, j, direction="down")
+                else:
+                    obj.draw(i, j, direction="up")
+    elif len(neighbors) == 2:
+        # Either straight or corner piece
+
+        # If straight, check to see if either x or y of both are equal:
+        # for output node, unless neightbor[0] is not opposite direction, just draw, else cross
+        if neighbors[0][0] == neighbors[1][0]:
+            # same row - horizontal
+            if item not in [2, 3, 5]:
+                obj.draw(i, j, direction="horizontal")
+            # input node - point up
+            elif item == 2:
+                obj.draw(i, j, state="junction", direction="up")
+
+            elif item == 3:
+                obj.draw(i, j, state="cross")
+            elif item == 5:
+                if dir == 1:
+                    obj.draw(i, j, direction="right")
+                else:
+                    obj.draw(i, j, direction="left")
+
+        elif neighbors[0][1] == neighbors[1][1]:
+            # same column - vertical
+            if item not in [2, 3, 5]:
+                obj.draw(i, j, direction="vertical")
+            # input node - point right
+            elif item == 2:
+                obj.draw(i, j, state="junction", direction="right")
+            elif item == 3:
+                obj.draw(i, j, state="cross")
+            elif item == 5:
+                if dir == 1:
+                    obj.draw(i, j, direction="down")
+                else:
+                    obj.draw(i, j, direction="up")
+
+        else:
+            # corner
+            if item == 1:
+                if down in neighbors:
+                    # down and right - default
+                    if right in neighbors:
+                        # right down
+                        obj.draw(
+                            i, j, state="corner", direction="right_down"
+                        )
+                    else:
+                        # down left
+                        obj.draw(i, j, state="corner",
+                                 direction="up_right")
+                else:
+                    # down and right - default
+                    if right in neighbors:
+                        # upright
+                        obj.draw(
+                            i, j, state="corner", direction="down_left"
+                        )
+                    else:
+                        # left-up left
+                        obj.draw(i, j, state="corner",
+                                 direction="left_up")
+            elif item == 2:
+                if up == neighbors[0]:
+                    obj.draw(i, j, state="junction",
+                             direction="down")
+                elif down == neighbors[0]:
+                    obj.draw(i, j, state="junction",
+                             direction="up")
+                elif right == neighbors[0]:
+                    obj.draw(i, j, state="junction",
+                             direction="left")
+                else:
+                    obj.draw(i, j, state="junction",
+                             direction="right")
+
+            elif item == 3:
+                obj.draw(i, j)
+
+            else:
+                obj.draw(i, j)
+
+    elif len(neighbors) == 3:
+        if item in [1, 2]:
+            for possibility in possibilities:
+                if possibility not in neighbors:
+                    if possibility == down:
+                        obj.draw(i, j, state="junction",
+                                 direction="down")
+                    elif possibility == left:
+                        obj.draw(i, j, state="junction",
+                                 direction="left")
+                    elif possibility == up:
+                        obj.draw(i, j, state="junction",
+                                 direction="up")
+                    else:
+                        obj.draw(i, j, state="junction",
+                                 direction="right")
+                    break
+
+        else:
+            obj.draw(i, j)
+
+    else:
+        try:
+            obj.draw(i, j, state="cross", direction="any")
+        except TypeError:
+            obj.draw(i, j)
+
+    #print('iter time w/o grid: ', time.time() - start)
+    # draw_grid()
+    #print('iter time: ', time.time() - start)
+
+
+def draw_circuit():
+    global circuit, circuit_objects, garbage
+    start = time.time()
+    for item in garbage:
+        print('deleting garbage item')
+        circuit_view.delete(item)
+    garbage = []
+    for i in range(circuit_height):
+        for j in range(circuit_width):
+            draw_item(i, j)
+    #print('iter time w/o grid: ', time.time() - start)
+    #print('iter time: ',time.time()-start)
 
 
 def clear_circuit():
     global circuit, circuit_objects, circuit_objects_list, capacitors, changes, current_change, index
+    # for obj in circuit_objects_list:
+    # for component in obj.drawing:
+    # circuit_view.delete(component)
     circuit = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects_list = []
@@ -1290,22 +1276,27 @@ def soft_delete():
         print('len cap: ', len(capacitors))
     # remove from circuit obejects list
     obj = ti(circuit_objects, (y, x))
+
     for i, item in enumerate(circuit_objects_list):
         if item.uid == obj.uid:
             circuit_objects_list.pop(i)
             break
-
+    # del(obj)
     circuit[y][x] = 0
     circuit_objects[y][x] = 0
 
 
 def soft_add_item(code, item=None):
-    global x, y, circuit, circuit_objects, circuit_objects_list, changes, current_change
+    global x, y, circuit, circuit_objects, circuit_objects_list, changes, current_change, garbage
     # print(x, y)
     old_code = circuit[y][x]
     old_data = circuit_objects[y][x] if circuit_objects[y][x] == 0 else circuit_objects[y][x].get_data(
     )
+
+    old_obj = circuit_objects[y][x]
+
     if item is not None:
+        soft_delete()
         new_obj = item
     elif code == 0:
         soft_delete()
@@ -1313,12 +1304,6 @@ def soft_add_item(code, item=None):
     elif code == 1:
         soft_delete()
         new_obj = Wire()
-    elif code == 2:
-        soft_delete()
-        new_obj = InputNode()
-    elif int(code) == 3:
-        soft_delete()
-        new_obj = OutputNode(direction=round(code % 1, 2))
     elif code == 5:
         soft_delete()
         new_obj = Battery(voltage=15.0)
@@ -1329,11 +1314,14 @@ def soft_add_item(code, item=None):
         soft_delete()
         new_obj = Capacitor(10.0)
         capacitors.append(new_obj)
-
     circuit[y][x] = code
     circuit_objects[y][x] = new_obj
     new_data = 0 if new_obj == 0 else new_obj.get_data()
 
+    # filter for trying to place an item over the same one
+    # another way to fully patch is to disable mode changing while placing items
+    if str(new_obj) == str(old_obj):
+        return
     if item is None:
         current_change.append(gen_change(
             old_code, old_data, code, new_data, x, y))
@@ -1344,7 +1332,7 @@ def soft_add_item(code, item=None):
 
 def add_item(code):
     soft_add_item(code)
-    draw_circuit()
+    draw_item(y, x, surrounding=True)
 
 
 m = Menu(root, tearoff=0)
@@ -1377,14 +1365,19 @@ index = -1
 
 current_change = []
 
+last_placed = {'time': time.time(), 'x': None, 'y': None}
+
 
 def left_click(event):
-    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index
-    x, y = (event.x // 20, event.y // 20)
+    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index, last_placed
+    update_pos(event)
+    #print('last placed: ', last_placed)
     if x not in list(range(circuit_width)) or y not in list(range(circuit_height)):
         return
     if old_x == x and old_y == y:
         return
+
+    print(x, y)
     old_x, old_y = x, y
     item = int(circuit[y][x])
 
@@ -1432,10 +1425,64 @@ def left_click(event):
             [gen_change(old_code, old_data, new_code, new_data, coords[0], coords[1])])
         index += 1
         # print(changes)
+        draw_item(y, x)
     else:
         add_item(mode if mode != 4 else 0)
-    # current_change.append('new')
-    draw_circuit()
+        print('placed at: ', x, y, 'previous location: ',
+              last_placed['x'], last_placed['y'])
+        current_time = time.time()
+        last_placed['time'] = current_time
+        last_placed['x'] = x
+        last_placed['y'] = y
+    """
+        # check to see if we're within time threshold for last placed (0.25 seconds)
+        current_time = time.time()
+        if last_placed['x'] is None:
+            last_placed['time'] = current_time
+            last_placed['x'] = x
+            last_placed['y'] = y
+
+        dx = last_placed['x'] - old_x
+        dy = last_placed['y'] - old_y
+        if current_time - last_placed['time'] <= 5 and abs(dx)+abs(dy) > 1 and last_placed['x'] is not None:
+            last_placed['time'] = current_time
+            last_placed['x'] = x
+            last_placed['y'] = y
+            print('interpolate')
+            print('dx: ', dx, 'dy: ', dy)
+            x_dir = -1 if dx < 0 else 1
+            y_dir = -1 if dy < 0 else 1
+            if abs(dx) >= abs(dy):
+                slope = dy/dx
+                print('slope, ', slope)
+                last_y = old_y
+                for current_x in range(abs(dx)):
+                    x = old_x + x_dir*current_x
+                    new_y = old_y + math.floor(slope*current_x)
+                    if last_y != new_y:
+                        add_item(1)
+                    y = new_y
+                    add_item(1)
+                    last_y = y
+        print('new last_places: ', last_placed)"""
+
+    """
+    if dx >= dy:
+            for i in range(dx):
+                x += x_dir
+                #y = old_y + (0 if dy == 0 else i // dy)
+
+                #add_item(mode if mode != 4 else 0)
+                add_item(6)
+        else:
+            for i in range(dy):
+                y += y_dir
+                #x = old_x + (0 if dx == 0 else i // dx)
+                #add_item(mode if mode != 4 else 0)
+                # current_change.append('new')
+                add_item(6)"""
+
+    # draw_circuit()
 
 
 # draw the grid
@@ -1459,6 +1506,11 @@ def handle_key(event):
     elif event.char == 'd':
         delete_button.invoke()
         delete_button.focus_set()
+    elif event.char == 't':
+        item = circuit_objects[y][x]
+        print(item)
+        if item != 0:
+            print('id: ', item.uid)
 
 
 def reset(event):
@@ -1583,6 +1635,8 @@ def update_pos(event):
     global label2, x, y
     x = event.x // 20
     y = event.y // 20
+    #print(x, y)
+    label2.config(text=f'({x}, {y})')
 
 
 circuit_view.bind("<Motion>", update_pos)
@@ -1785,12 +1839,6 @@ def run_circuit():
     for item in circuit_objects_list:
         if isinstance(item, Wire):
             things['wire'].append(item)
-
-        elif isinstance(item, InputNode):
-            things['input'].append(item)
-
-        elif isinstance(item, OutputNode):
-            things['output'].append(item)
 
         elif isinstance(item, Resistor):
             things['resistor'].append(item)

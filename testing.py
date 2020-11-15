@@ -441,6 +441,7 @@ class CircuitItem:
         for component in self.drawing:
             circuit_view.delete(component)
 
+
 class CircuitSegment(CircuitItem):
     def __init__(self, contents):
         super().__init__()
@@ -500,6 +501,9 @@ class Wire(CircuitItem):
 
     def get_data(self):
         return {'resistance': self.resistance, 'flipped': self.flipped}
+
+    def __str__(self):
+        return f'Wire(resistance={self.resistance})'
 
 
 class Resistor(CircuitItem):
@@ -1018,8 +1022,8 @@ def draw_item(i, j, surrounding=False):
     item = ti(circuit, (i, j))
 
     obj = circuit_objects[i][j]
-    #for component in obj.drawing:
-        #circuit_view.delete(component)
+    # for component in obj.drawing:
+    # circuit_view.delete(component)
 
     # Check for neighbors
     possibilities = get_possibilities(i, j)
@@ -1178,11 +1182,8 @@ def draw_item(i, j, surrounding=False):
         except TypeError:
             obj.draw(i, j)
 
-
-
-
     #print('iter time w/o grid: ', time.time() - start)
-    #draw_grid()
+    # draw_grid()
     #print('iter time: ', time.time() - start)
 
 
@@ -1202,9 +1203,9 @@ def draw_circuit():
 
 def clear_circuit():
     global circuit, circuit_objects, circuit_objects_list, capacitors, changes, current_change, index
-    #for obj in circuit_objects_list:
-        #for component in obj.drawing:
-            #circuit_view.delete(component)
+    # for obj in circuit_objects_list:
+    # for component in obj.drawing:
+    # circuit_view.delete(component)
     circuit = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects_list = []
@@ -1280,7 +1281,7 @@ def soft_delete():
         if item.uid == obj.uid:
             circuit_objects_list.pop(i)
             break
-    #del(obj)
+    # del(obj)
     circuit[y][x] = 0
     circuit_objects[y][x] = 0
 
@@ -1289,7 +1290,9 @@ def soft_add_item(code, item=None):
     global x, y, circuit, circuit_objects, circuit_objects_list, changes, current_change, garbage
     # print(x, y)
     old_code = circuit[y][x]
-    old_data = circuit_objects[y][x] if circuit_objects[y][x] == 0 else circuit_objects[y][x].get_data()
+    old_data = circuit_objects[y][x] if circuit_objects[y][x] == 0 else circuit_objects[y][x].get_data(
+    )
+
     old_obj = circuit_objects[y][x]
 
     if item is not None:
@@ -1315,6 +1318,10 @@ def soft_add_item(code, item=None):
     circuit_objects[y][x] = new_obj
     new_data = 0 if new_obj == 0 else new_obj.get_data()
 
+    # filter for trying to place an item over the same one
+    # another way to fully patch is to disable mode changing while placing items
+    if str(new_obj) == str(old_obj):
+        return
     if item is None:
         current_change.append(gen_change(
             old_code, old_data, code, new_data, x, y))
@@ -1358,12 +1365,13 @@ index = -1
 
 current_change = []
 
-last_placed = {'time':time.time(), 'x':None, 'y':None}
+last_placed = {'time': time.time(), 'x': None, 'y': None}
+
 
 def left_click(event):
     global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index, last_placed
     update_pos(event)
-    print('last placed: ', last_placed)
+    #print('last placed: ', last_placed)
     if x not in list(range(circuit_width)) or y not in list(range(circuit_height)):
         return
     if old_x == x and old_y == y:
@@ -1420,7 +1428,13 @@ def left_click(event):
         draw_item(y, x)
     else:
         add_item(mode if mode != 4 else 0)
-
+        print('placed at: ', x, y, 'previous location: ',
+              last_placed['x'], last_placed['y'])
+        current_time = time.time()
+        last_placed['time'] = current_time
+        last_placed['x'] = x
+        last_placed['y'] = y
+    """
         # check to see if we're within time threshold for last placed (0.25 seconds)
         current_time = time.time()
         if last_placed['x'] is None:
@@ -1450,7 +1464,7 @@ def left_click(event):
                     y = new_y
                     add_item(1)
                     last_y = y
-        print('new last_places: ', last_placed)
+        print('new last_places: ', last_placed)"""
 
     """
     if dx >= dy:
@@ -1468,7 +1482,7 @@ def left_click(event):
                 # current_change.append('new')
                 add_item(6)"""
 
-    #draw_circuit()
+    # draw_circuit()
 
 
 # draw the grid
@@ -1495,8 +1509,8 @@ def handle_key(event):
     elif event.char == 't':
         item = circuit_objects[y][x]
         print(item)
-        if item !=0:
-            print('id: ',item.uid)
+        if item != 0:
+            print('id: ', item.uid)
 
 
 def reset(event):

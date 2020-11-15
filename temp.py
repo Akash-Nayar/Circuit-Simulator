@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageTk, ImageOps
 from scipy import interpolate
 import numpy as np
-
+import sys
+import time
 
 # Colors
 color1 = "#F7F7F8"
@@ -16,12 +17,9 @@ color2 = "#E2E2E1"
 color1 = "#AAAAAA"
 color2 = "#BBBBBB"
 
-
 root = Tk()
 root.title("Circuit Simulator")
 root.resizable(False, False)
-
-
 
 style = ttk.Style(root)
 
@@ -37,10 +35,9 @@ root.tk.eval("""
     # ... (you can add the other themes from the package if you want
     """)
 root.tk.call("package", "require", 'awdark')
-root.tk.call("package", "require", 'awdark')
 root.tk.call("package", "require", 'awlight')
 print(style.theme_names())
-style_str = 'awdark'
+style_str = 'awlight'
 if style_str == 'awdark':
     dark_mode = True
 else:
@@ -48,7 +45,7 @@ else:
 style.theme_use(style_str)
 
 root.configure(bg=style.lookup('TFrame', 'background'))
-style.theme_use('awlight')
+style.theme_use(style_str)
 display_width = 1280
 display_height = 720
 
@@ -58,7 +55,6 @@ circuit_height = 30
 cell_size = 20
 canvas_width = circuit_width * cell_size
 canvas_height = circuit_height * cell_size
-
 
 bg_color = color2
 bg_widget_color = color1
@@ -86,14 +82,14 @@ resistor_canvas.grid(row=0, column=0)
 resistor_scrollbar.grid(row=1, column=0)
 """
 padding = (10, 10)
-tab_control.add(creator, text ='Creator')
-tab_control.add(observer, text ='Observer')
+tab_control.add(creator, text='Creator')
+tab_control.add(observer, text='Observer')
 tab_control.grid(row=0, column=0)
 circuit_view_frame = ttk.LabelFrame(creator, text='Circuit Board')
 circuit_view_frame.grid(row=0, column=0, sticky="n",
-                  padx=padding[0], pady=padding[1])
+                        padx=padding[0], pady=padding[1])
 circuit_view = Canvas(circuit_view_frame, width=canvas_width, height=canvas_height,
-                      highlightthickness=1, background=None if dark_mode else None, highlightbackground="black")
+                      highlightthickness=1, background='gray10' if dark_mode else None, highlightbackground="black")
 
 options_view = ttk.Frame(creator)
 
@@ -105,7 +101,6 @@ circuit_view.grid(row=0, column=0, sticky="n",
                   padx=padding[0], pady=padding[1])
 options_view.grid(row=0, column=1, sticky="n",
                   padx=(0, padding[0]))
-
 
 circuit = [[0] * circuit_width for _ in range(circuit_height)]
 circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
@@ -178,9 +173,9 @@ def get_path(position, curr_path, visited, end_point):
         except IndexError:
             continue
 
-    # Check if we are at an input node:
+    # Check if we are at a branch, len(availabilities) that are not in visited > 1:
     current_value = ti(circuit, position)
-    if current_value == 2:
+    if len(availabilities) > 1:
         new_paths = [
             get_path(availability, [], visited.copy(), end_point)
             for availability in availabilities
@@ -229,6 +224,7 @@ def convert_color(im, old_c, new_c):
     im2 = Image.fromarray(data)
     return im2
 
+
 new_color = (255, 255, 255)
 old_color = (0, 0, 0)
 
@@ -236,21 +232,23 @@ old_color = (0, 0, 0)
 cursor_img = ImageTk.PhotoImage(Image.open(
     "images/cursor.png").resize((cell_size, cell_size), Image.ANTIALIAS))
 
-delete_img = Image.open("images/x.png").resize((cell_size, cell_size), Image.ANTIALIAS)
-delete_img = delete_img if not dark_mode else convert_color(delete_img, old_color, new_color)
+delete_img = Image.open(
+    "images/x.png").resize((cell_size, cell_size), Image.ANTIALIAS)
+delete_img = delete_img if not dark_mode else convert_color(
+    delete_img, old_color, new_color)
 delete_img = ImageTk.PhotoImage(delete_img)
 
-
-
 wire_straight_img = Image.open(f"images/wire_straight.png")
-wire_straight_img = wire_straight_img if not dark_mode else convert_color(wire_straight_img, old_color, new_color)
+wire_straight_img = wire_straight_img if not dark_mode else convert_color(
+    wire_straight_img, old_color, new_color)
 wire_straight_imgs = {
     "horizontal": ImageTk.PhotoImage(wire_straight_img),
     "vertical": ImageTk.PhotoImage(wire_straight_img.rotate(90)),
 }
 
 wire_corner_img = Image.open(f"images/wire_corner.png")
-wire_corner_img = wire_corner_img if not dark_mode else convert_color(wire_corner_img, old_color, new_color)
+wire_corner_img = wire_corner_img if not dark_mode else convert_color(
+    wire_corner_img, old_color, new_color)
 wire_corner_imgs = {
     "right_down": ImageTk.PhotoImage(wire_corner_img),
     "down_left": ImageTk.PhotoImage(wire_corner_img.rotate(90)),
@@ -258,7 +256,8 @@ wire_corner_imgs = {
     "up_right": ImageTk.PhotoImage(wire_corner_img.rotate(270)),
 }
 wire_junction_img = Image.open(f"images/wire_junction.png")
-wire_junction_img = wire_junction_img if not dark_mode else convert_color(wire_junction_img, old_color, new_color)
+wire_junction_img = wire_junction_img if not dark_mode else convert_color(
+    wire_junction_img, old_color, new_color)
 wire_junction_imgs = {
     "up": ImageTk.PhotoImage(wire_junction_img),
     "left": ImageTk.PhotoImage(wire_junction_img.rotate(90)),
@@ -266,11 +265,13 @@ wire_junction_imgs = {
     "right": ImageTk.PhotoImage(wire_junction_img.rotate(270)),
 }
 wire_cross_img = Image.open(f"images/wire_cross.png")
-wire_cross_img = wire_cross_img if not dark_mode else convert_color(wire_cross_img, old_color, new_color)
+wire_cross_img = wire_cross_img if not dark_mode else convert_color(
+    wire_cross_img, old_color, new_color)
 wire_cross_imgs = {"any": ImageTk.PhotoImage(wire_cross_img)}
 
 input_node_junction_img = Image.open(f"images/input_node_junction.png")
-input_node_junction_img = input_node_junction_img if not dark_mode else convert_color(input_node_junction_img, old_color, new_color)
+input_node_junction_img = input_node_junction_img if not dark_mode else convert_color(input_node_junction_img,
+                                                                                      old_color, new_color)
 input_node_junction_imgs = {
     "up": ImageTk.PhotoImage(input_node_junction_img),
     "left": ImageTk.PhotoImage(input_node_junction_img.rotate(90)),
@@ -278,11 +279,13 @@ input_node_junction_imgs = {
     "right": ImageTk.PhotoImage(input_node_junction_img.rotate(270)),
 }
 input_node_cross_img = Image.open(f"images/input_node_cross.png")
-input_node_cross_img = input_node_cross_img if not dark_mode else convert_color(input_node_cross_img, old_color, new_color)
+input_node_cross_img = input_node_cross_img if not dark_mode else convert_color(input_node_cross_img, old_color,
+                                                                                new_color)
 input_node_cross_imgs = {"any": ImageTk.PhotoImage(input_node_cross_img)}
 
 output_node_corner_left_img = Image.open(f"images/output_node_corner.png")
-output_node_corner_left_img = output_node_corner_left_img if not dark_mode else convert_color(output_node_corner_left_img, old_color, new_color)
+output_node_corner_left_img = output_node_corner_left_img if not dark_mode else convert_color(
+    output_node_corner_left_img, old_color, new_color)
 output_node_corner_left_imgs = {
     "down": ImageTk.PhotoImage(output_node_corner_left_img),
     "right": ImageTk.PhotoImage(output_node_corner_left_img.rotate(90)),
@@ -291,7 +294,8 @@ output_node_corner_left_imgs = {
 }
 
 output_node_corner_right_img = ImageOps.mirror(output_node_corner_left_img)
-output_node_corner_right_img = output_node_corner_right_img if not dark_mode else convert_color(output_node_corner_right_img, old_color, new_color)
+output_node_corner_right_img = output_node_corner_right_img if not dark_mode else convert_color(
+    output_node_corner_right_img, old_color, new_color)
 output_node_corner_right_imgs = {
     "down": ImageTk.PhotoImage(output_node_corner_right_img),
     "right": ImageTk.PhotoImage(output_node_corner_right_img.rotate(90)),
@@ -299,9 +303,9 @@ output_node_corner_right_imgs = {
     "left": ImageTk.PhotoImage(output_node_corner_right_img.rotate(270)),
 }
 
-
 output_node_junction_img = Image.open(f"images/output_node_junction.png")
-output_node_junction_img = output_node_junction_img if not dark_mode else convert_color(output_node_junction_img, old_color, new_color)
+output_node_junction_img = output_node_junction_img if not dark_mode else convert_color(output_node_junction_img,
+                                                                                        old_color, new_color)
 output_node_junction_imgs = {
     "down": ImageTk.PhotoImage(output_node_junction_img),
     "right": ImageTk.PhotoImage(output_node_junction_img.rotate(90)),
@@ -309,7 +313,8 @@ output_node_junction_imgs = {
     "left": ImageTk.PhotoImage(output_node_junction_img.rotate(270)),
 }
 output_node_cross_img = Image.open(f"images/output_node_cross.png")
-output_node_cross_img = output_node_cross_img if not dark_mode else convert_color(output_node_cross_img, old_color, new_color)
+output_node_cross_img = output_node_cross_img if not dark_mode else convert_color(output_node_cross_img, old_color,
+                                                                                  new_color)
 output_node_cross_imgs = {
     "down": ImageTk.PhotoImage(output_node_cross_img),
     "right": ImageTk.PhotoImage(output_node_cross_img.rotate(90)),
@@ -317,16 +322,17 @@ output_node_cross_imgs = {
     "left": ImageTk.PhotoImage(output_node_cross_img.rotate(270)),
 }
 
-
 resistor_img = Image.open(f"images/resistor.png")
-resistor_img = resistor_img if not dark_mode else convert_color(resistor_img, old_color, new_color)
+resistor_img = resistor_img if not dark_mode else convert_color(
+    resistor_img, old_color, new_color)
 resistor_imgs = {
     "horizontal": ImageTk.PhotoImage(resistor_img),
     "vertical": ImageTk.PhotoImage(resistor_img.rotate(90)),
 }
 
 battery_img = Image.open(f"images/battery.png")
-battery_img = battery_img if not dark_mode else convert_color(battery_img, old_color, new_color)
+battery_img = battery_img if not dark_mode else convert_color(
+    battery_img, old_color, new_color)
 battery_imgs = {
     "right": ImageTk.PhotoImage(battery_img),
     "down": ImageTk.PhotoImage(battery_img.rotate(90)),
@@ -335,7 +341,8 @@ battery_imgs = {
 }
 
 capacitor_img = Image.open(f"images/capacitor.png")
-capacitor_img = capacitor_img if not dark_mode else convert_color(capacitor_img, old_color, new_color)
+capacitor_img = capacitor_img if not dark_mode else convert_color(
+    capacitor_img, old_color, new_color)
 capacitor_imgs = {
     "horizontal": ImageTk.PhotoImage(capacitor_img),
     "vertical": ImageTk.PhotoImage(capacitor_img.rotate(90)),
@@ -348,13 +355,13 @@ class CircuitItem:
     default_direction = None
     uid = 1
 
-    def __init__(self, voltage=0, resistance=0, current=0, capacitance=0, charge=0):
+    def __init__(self, voltage=0, resistance=0, current=0, capacitance=0, charge=0, flipped=False):
         self._voltage = voltage
         self._resistance = resistance
         self._current = current
         self._capacitance = capacitance
         self._charge = charge
-        self.flipped = False
+        self.flipped = flipped
         self.uid = CircuitItem.uid
         CircuitItem.uid += 1
 
@@ -417,7 +424,14 @@ class CircuitItem:
                 ],
             )
         except IndexError:
-            pass
+            circuit_view.create_image(
+                j * 20,
+                i * 20,
+                anchor=NW,
+                image=self.imgs[state if state is not None else self.default_state][
+                    direction if direction is not None else self.default_direction
+                ],
+            )
 
 
 class CircuitSegment(CircuitItem):
@@ -477,6 +491,9 @@ class Wire(CircuitItem):
     def __init__(self, resistance=0):
         super().__init__(resistance=resistance)
 
+    def get_data(self):
+        return {'resistance': self.resistance, 'flipped': self.flipped}
+
 
 def get_direction(dir):
     if dir == 0:
@@ -490,7 +507,6 @@ def get_direction(dir):
 
 
 class InputNode(Wire):
-
     imgs = {"junction": input_node_junction_imgs,
             "cross": input_node_cross_imgs}
 
@@ -538,8 +554,8 @@ class Resistor(CircuitItem):
 
     id = 1
 
-    def __init__(self, resistance):
-        super().__init__(resistance=resistance)
+    def __init__(self, resistance, flipped=False):
+        super().__init__(resistance=resistance, flipped=flipped)
         self.id = Resistor.id
         Resistor.id += 1
 
@@ -561,18 +577,18 @@ class Resistor(CircuitItem):
                 # Draw labels above
                 circuit_view.create_text(
                     j * 20 + 10,
-                    i * 20 - multiplier*10,
+                    i * 20 - multiplier * 10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
                     angle=angle_offset,
-                    fill='white'
+                    fill='white' if style_str == 'awdark' else 'black'
                 )
             else:
                 circuit_view.create_text(
-                    j * 20 - multiplier*10,
+                    j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
-                    angle=angle_offset+90,
-                    fill='white'
+                    angle=angle_offset + 90,
+                    fill='white' if style_str == 'awdark' else 'black'
                 )
 
         try:
@@ -582,14 +598,16 @@ class Resistor(CircuitItem):
         except IndexError:
             pass
 
+    def get_data(self):
+        return {'resistance': self.resistance, 'flipped': self.flipped}
+
 
 class Battery(CircuitItem):
-
     default_direction = "left"
     imgs = battery_imgs
 
-    def __init__(self, voltage):
-        super().__init__(voltage=voltage)
+    def __init__(self, voltage, flipped=False):
+        super().__init__(voltage=voltage, flipped=flipped)
 
     def draw(self, i, j, direction=None):
 
@@ -608,15 +626,15 @@ class Battery(CircuitItem):
                     i * 20 - multiplier * 10,
                     text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
                     angle=angle_offset,
-                    fill='white'
+                    fill='white' if style_str == 'awdark' else 'black'
                 )
             else:
                 circuit_view.create_text(
                     j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.voltage) if self.voltage.is_integer() else self.voltage} V",
-                    angle=angle_offset+90,
-                    fill='white'
+                    angle=angle_offset + 90,
+                    fill='white' if style_str == 'awdark' else 'black'
                 )
 
         try:
@@ -634,16 +652,18 @@ class Battery(CircuitItem):
     def __repr__(self):
         return f"Battery({self.voltage})"
 
+    def get_data(self):
+        return {'voltage': self.voltage, 'flipped': self.flipped}
+
 
 class Capacitor(CircuitItem):
-
     id = 1
 
     imgs = capacitor_imgs
     default_direction = "horizontal"
 
-    def __init__(self, capacitance):
-        super().__init__(capacitance=capacitance)
+    def __init__(self, capacitance, flipped=False):
+        super().__init__(capacitance=capacitance, flipped=flipped)
         self.times = []
         self.charges = []
         self._tau = 0.0
@@ -672,15 +692,15 @@ class Capacitor(CircuitItem):
                     i * 20 - multiplier * 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
                     angle=angle_offset,
-                    fill='white'
+                    fill='white' if style_str == 'awdark' else 'black'
                 )
             else:
                 circuit_view.create_text(
                     j * 20 - multiplier * 10,
                     i * 20 + 10,
                     text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
-                    angle=angle_offset+90,
-                    fill='white'
+                    angle=angle_offset + 90,
+                    fill='white' if style_str == 'awdark' else 'black'
                 )
 
         try:
@@ -690,6 +710,9 @@ class Capacitor(CircuitItem):
         except IndexError:
             pass
 
+    def get_data(self):
+        return {'capacitance': self.capacitance, 'flipped': self.flipped}
+
 
 class ParallelCell(CircuitItem):
     def __init__(self, paths):
@@ -698,15 +721,19 @@ class ParallelCell(CircuitItem):
         self.origin = paths[0][0]
         self.end = paths[0][-1]
         self._voltage = 0
+        #print('self.end', self.end)
         # Check paths for parallels within
 
         # 2D, each row is a path, each column represent object
         self.paths_items = []
-
+        # IF 2 PATHS HAVE THE SAME NEW_NODE, FIND THEIR INTERSECTIOSN
         new_nodes = []
         for path in self.paths:
-
+            escape = False
             # Check to see if current path contains one of the new nodes, disregard if so
+
+            #
+            # print_circuit(path)
             if any(node in new_nodes for node in path):
                 continue
 
@@ -714,74 +741,90 @@ class ParallelCell(CircuitItem):
 
             skip_until = False
             target = (0, 0)
-            for i, step in enumerate(path[1:]):
+            x_path = [path[1]]
+            for i, step in enumerate(path[2:-1]):
+
+                # If it is an input node
+                possibilities = get_possibilities(step[0], step[1])
+                neighbors = [neighbor for neighbor in get_neighbors(
+                    circuit, possibilities) if neighbor not in x_path]
+                #print('step: ', step, 'neighbors:', neighbors)
+                if len(neighbors) > 1:
+                    # add the new node, continue
+                    new_nodes.append(step)
+                    break
+                x_path.append(step)
+
+        # group paths by the common nodes they share
+        used_paths = []
+        paths_to_explore = []
+        for new_node in new_nodes:
+            node_paths = []
+            for path in self.paths:
+                if new_node in path:
+                    used_paths.append(path)
+                    node_paths.append(path)
+            paths_to_explore.append(node_paths)
+
+        for path in self.paths:
+            if path not in used_paths:
+                paths_to_explore.append([path])
+
+        for paths in paths_to_explore:
+            paths_intersection = []
+            if len(paths) > 1:
+                for item in paths[0]:
+                    add = True
+                    for path in paths[1:]:
+                        if item not in path:
+                            add = False
+                    if add:
+                        paths_intersection.append(item)
+
+            # now just do the same thing as we do in the main segment for each of the paths
+            x_path = [paths[0][0]]
+            path_items = []
+            path = paths[0]
+            for i, step in enumerate(path[1:-1]):
                 if skip_until and step != target:
                     continue
 
                 skip_until = False
                 item = ti(circuit, step)
+                x_path.append(step)
 
-                """# If it is a wire:
-                if item == 1:
-                    path_items.append(Wire())
-                    # Check neighbors:
-                    above = (step[0] - 1, step[1])
-                    below = (step[0] + 1, step[1])
-                    right = (step[0], step[1] + 1)
-                    left = (step[0], step[1] - 1)
-                    possibilities = [above, below, right, left]
-                    availabilities = []
-                    for possibility in possibilities:
-                        try:
-                            value = ti(circuit, possibility)
-                            if value != 0:
-                                availabilities.append(possibility)
-                        except IndexError:
-                            continue
-                    # Do some other stuff that im too lazy to do rn
-"""
-                # If it is a resistor:
+                # get number of neighbors
+                possibilities = get_possibilities(step[0], step[1])
+                neighbors = [neighbor for neighbor in get_neighbors(circuit, possibilities) if
+                             neighbor not in x_path]
+                # Check for resistor:
                 if item == 6:
+
                     path_items.append(ti(circuit_objects, step))
 
                 elif item == 7:
                     path_items.append(ti(circuit_objects, step))
-                # If it is an input node
-                elif item == 2:
-                    new_nodes.append(step)
+
+                # Check for node:
+
+                elif len(neighbors) > 1:
                     previous_item = ti(circuit, paths[0][i])
                     # Generate new paths starting at this node:
+                    # find next path element that is in intersection
+                    end = paths_intersection[paths_intersection.index(
+                        step) + 1]
 
-                    new_paths = get_path(step, [], [path[i]], self.end)
+                    raw_new_paths = get_path(step, [], [paths[0][i]], end)
+                    new_paths = [
+                        new_path for new_path in raw_new_paths if end in new_path]
+                    for p in new_paths:
+                        for s in p:
+                            x_path.append(s)
 
-                    # print_path(new_path)
-                    # Find the end, when num of input and output nodes are equal
-                    print("new")
-                    num_input = 0
-                    num_output = 0
-                    for new_step in new_paths[0]:
-                        new_item = ti(circuit, new_step)
-                        if new_item == 2:
-                            num_input += 1
-                        elif int(new_item) == 3:
-                            num_output += 1
-                        if num_input == num_output:
-                            ending = new_step
-                            break
-                    # Shorten the paths
-                    shortened_paths = []
-                    for new_path in new_paths:
-                        shortened_path = new_path[: new_path.index(ending) + 1]
-                        if shortened_path not in shortened_paths:
-                            shortened_paths.append(
-                                new_path[: new_path.index(ending) + 1]
-                            )
-                    path_items.append(ParallelCell(shortened_paths))
+                    path_items.append(ParallelCell(new_paths))
                     skip_until = True
-                    target = ending
+                    target = end
             self.paths_items.append(CircuitSegment(path_items))
-
-            # print(self.paths_items)
 
     def __repr__(self):
         return f"ParallelCell(paths_items={self.paths_items})"
@@ -832,7 +875,6 @@ flip = False
 
 
 def validate_float(flt, positive=False):
-
     if not positive:
         try:
             if flt[0] == "-":
@@ -956,12 +998,11 @@ else:
     lines = lines_original
 print(lines.mode)
 print(lines.size)
-#lines.thumbnail((blockSize*circuit_width+6, blockSize*circuit_height+6), Image.ANTIALIAS)
+# lines.thumbnail((blockSize*circuit_width+6, blockSize*circuit_height+6), Image.ANTIALIAS)
 lines_img = ImageTk.PhotoImage(lines)
 
 
 def draw_grid():
-
     global draw_lines
 
     if draw_lines:
@@ -977,9 +1018,10 @@ def draw_grid():
             for j in range(circuit_height + 1):
                 x = i * blockSize
                 y = j * blockSize
-                circuit_view.create_oval(x-1, y-1, x+1, y+1, fill="#B3B3B3")
+                circuit_view.create_oval(
+                    x - 1, y - 1, x + 1, y + 1, fill="#B3B3B3")
     circuit_view.update()
-    #circuit_view.postscript(file="lines.ps", colormode='color')
+    # circuit_view.postscript(file="lines.ps", colormode='color')
 
 
 # GUI
@@ -1007,8 +1049,9 @@ def get_neighbors(arr, possibilities):
 
 def draw_circuit():
     global circuit, circuit_objects
+    start = time.time()
     circuit_view.delete(ALL)
-    #draw_grid()
+    # draw_grid()
 
     for i, row in enumerate(circuit):
         for j, item in enumerate([int(x) for x in row]):
@@ -1021,33 +1064,6 @@ def draw_circuit():
                 possibilities = get_possibilities(i, j)
                 up, down, right, left = possibilities
                 neighbors = get_neighbors(circuit, possibilities)
-
-                # if it's output node
-                if item == 3:
-                    direction = obj.default_direction
-                    print(direction)
-                    if direction == "up":
-                        direction_neighbor = up
-                    elif direction == "down":
-                        direction_neighbor = down
-                    elif direction == "left":
-                        direction_neighbor = left
-                    else:
-                        direction_neighbor = right
-                    print(direction_neighbor, neighbors)
-                    if direction_neighbor not in neighbors:
-                        print("added")
-                        neighbors.append(direction_neighbor)
-                    for neighbor in neighbors:
-                        if neighbor == up:
-                            print("up")
-                        elif neighbor == down:
-                            print("down")
-                        elif neighbors == right:
-                            print("right")
-                        elif neighbor == left:
-                            print("left")
-                    print(len(neighbors))
                 if len(neighbors) == 0:
                     obj.draw(i, j)
                 elif len(neighbors) == 1:
@@ -1168,6 +1184,9 @@ def draw_circuit():
                         elif item == 3:
                             obj.draw(i, j)
 
+                        else:
+                            obj.draw(i, j)
+
                 elif len(neighbors) == 3:
                     if item in [1, 2]:
                         for possibility in possibilities:
@@ -1185,74 +1204,38 @@ def draw_circuit():
                                     obj.draw(i, j, state="junction",
                                              direction="right")
                                 break
-                    if item == 3:
 
-                        # first check if we should do junciton or corner - if there is a neighbor opposite to direction, do corner
-                        found = False
-                        for neighbor in neighbors:
-                            if neighbor != direction_neighbor and (
-                                neighbor[0] == direction_neighbor[0]
-                                or neighbor[1] == direction_neighbor[1]
-                            ):
-                                found = True
-                                break
-                        if found:
-                            # if the neighbor that is not parallel to direction is to the left of direction, do left
-                            found = False
-                            for neighbor in neighbors:
-                                if (
-                                    neighbor != direction_neighbor
-                                    and neighbor[0] != direction_neighbor[0]
-                                    and neighbor[1] != direction_neighbor[1]
-                                ):
-                                    found = True
-                                    if direction_neighbor == up:
-                                        # print(neighbor, left)
-                                        if neighbor == left:
-                                            state = "corner_left"
-                                        else:
-                                            state = "corner_right"
-
-                                    elif direction_neighbor == left:
-                                        if neighbor == down:
-                                            state = "corner_left"
-                                        else:
-                                            state = "corner_right"
-                                    elif direction_neighbor == down:
-                                        if neighbor == right:
-                                            state = "corner_left"
-                                        else:
-                                            state = "corner_right"
-                                    else:
-                                        if neighbor == up:
-                                            state = "corner_left"
-                                        else:
-                                            state = "corner_right"
-                                    print("state: ", state)
-                                    obj.draw(i, j, state=state)
-                                    break
-
-                        else:
-                            obj.draw(i, j, state="junction")
+                    else:
+                        obj.draw(i, j)
 
                 else:
-                    obj.draw(i, j, state="cross", direction="any")
-
+                    try:
+                        obj.draw(i, j, state="cross", direction="any")
+                    except TypeError:
+                        obj.draw(i, j)
+    print('iter time w/o grid: ', time.time() - start)
     draw_grid()
+    print('iter time: ', time.time()-start)
 
 
 def clear_circuit():
-    global circuit, circuit_objects, circuit_objects_list, capacitors
+    global circuit, circuit_objects, circuit_objects_list, capacitors, changes, current_change, index
     circuit = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects = [[0] * circuit_width for _ in range(circuit_height)]
     circuit_objects_list = []
     capacitors = []
-
+    changes = []
+    current_change = []
+    index = -1
     draw_circuit()
 
 
 def key(event):
     print("pressed", repr(event.char))
+
+
+def gen_change(old_code, old_data, new_code, new_data, x, y):
+    return {'old_code': old_code, 'old_data': old_data, 'new_code': new_code, 'new_data': new_data, 'x': x, 'y': y}
 
 
 x, y = (0, 0)
@@ -1286,47 +1269,81 @@ def delete_item():
     add_item(0)
 
 
-def add_item(code):
-    global x, y, circuit, circuit_objects, circuit_objects_list
-    #print(x, y)
-    if code == 0:
-        item = ti(circuit, (y, x))
-        if item == 0:
-            return
-        if item == 7:
-            print(len(capacitors))
-            id = ti(circuit_objects, (y, x)).id
-            for i, capacitor in enumerate(capacitors):
-                if capacitor.id == id:
-                    capacitors.pop(i)
-                    break
-            print(len(capacitors))
-        # remove from circuit obejects list
-        obj = ti(circuit_objects, (y, x))
-        for i, item in enumerate(circuit_objects_list):
-            if item.uid == obj.uid:
-                circuit_objects_list.pop(i)
-                break
+def soft_add_specific_item(code, item):
+    soft_add_item(code, item)
 
+
+# same as delete_item but doesn't redraw
+def soft_delete():
+    global x, y, circuit, circuit_objects, circuit_objects_list
+    # print(x, y)
+    item = ti(circuit, (y, x))
+    if item == 0:
+        return
+    if item == 7:
+        print(len(capacitors))
+        id = ti(circuit_objects, (y, x)).id
+        for i, capacitor in enumerate(capacitors):
+            if capacitor.id == id:
+                capacitors.pop(i)
+                break
+        print('len cap: ', len(capacitors))
+    # remove from circuit obejects list
+    obj = ti(circuit_objects, (y, x))
+    for i, item in enumerate(circuit_objects_list):
+        if item.uid == obj.uid:
+            circuit_objects_list.pop(i)
+            break
+
+    circuit[y][x] = 0
+    circuit_objects[y][x] = 0
+
+
+def soft_add_item(code, item=None):
+    global x, y, circuit, circuit_objects, circuit_objects_list, changes, current_change
+    # print(x, y)
+    old_code = circuit[y][x]
+    old_data = circuit_objects[y][x] if circuit_objects[y][x] == 0 else circuit_objects[y][x].get_data(
+    )
+    if item is not None:
+        new_obj = item
+    elif code == 0:
+        soft_delete()
         new_obj = 0
     elif code == 1:
+        soft_delete()
         new_obj = Wire()
     elif code == 2:
+        soft_delete()
         new_obj = InputNode()
     elif int(code) == 3:
+        soft_delete()
         new_obj = OutputNode(direction=round(code % 1, 2))
     elif code == 5:
+        soft_delete()
         new_obj = Battery(voltage=15.0)
     elif code == 6:
+        soft_delete()
         new_obj = Resistor(10.0)
     elif code == 7:
+        soft_delete()
         new_obj = Capacitor(10.0)
         capacitors.append(new_obj)
 
     circuit[y][x] = code
     circuit_objects[y][x] = new_obj
+    new_data = 0 if new_obj == 0 else new_obj.get_data()
+
+    if item is None:
+        current_change.append(gen_change(
+            old_code, old_data, code, new_data, x, y))
+
     if new_obj != 0:
         circuit_objects_list.append(new_obj)
+
+
+def add_item(code):
+    soft_add_item(code)
     draw_circuit()
 
 
@@ -1355,8 +1372,14 @@ username = ""
 mode = 0
 
 
+changes = []
+index = -1
+
+current_change = []
+
+
 def left_click(event):
-    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode
+    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index
     x, y = (event.x // 20, event.y // 20)
     if x not in list(range(circuit_width)) or y not in list(range(circuit_height)):
         return
@@ -1364,44 +1387,36 @@ def left_click(event):
         return
     old_x, old_y = x, y
     item = int(circuit[y][x])
-    #print(item, ti(circuit_objects, (x, y)))
 
     # If mode is 0, select tool
     if mode == 0:
-        if item == 3:
-            real_item = circuit[y][x]
-            if real_item == 3.0:
-                circuit_objects[y][x] = OutputNode(0.5)
-                circuit[y][x] = 3.5
-            elif real_item == 3.5:
-                circuit_objects[y][x] = OutputNode(0.25)
-                circuit[y][x] = 3.25
-            elif real_item == 3.25:
-                circuit_objects[y][x] = OutputNode(0.75)
-                circuit[y][x] = 3.75
-            else:
-                circuit_objects[y][x] = OutputNode(0.0)
-                circuit[y][x] = 3.0
-
+        if item in [0, 1]:
+            return
+        old_code = item
+        new_code = item
+        old_data = circuit_objects[y][x].get_data()
+        coords = x, y
         # Allow to change battery voltage:
-        elif item == 5:
+        if item == 5:
             obj = circuit_objects[y][x]
             battery_dialog = BatteryDialog(
                 root, obj.voltage, obj.flipped, event.x_root, event.y_root)
             root.wait_window(battery_dialog.top)
-            #print("voltage: ", gui.voltage)
+            # print("voltage: ", gui.voltage)
             obj.flipped = flip
             obj.voltage = voltage
         # Allow to change resistor
         elif item == 6:
             obj = circuit_objects[y][x]
+            print(circuit_objects[y][x])
             resistance_dialog = ResistorDialog(
                 root, obj.resistance, obj.flipped, event.x_root, event.y_root)
             root.wait_window(resistance_dialog.top)
-            #print("voltage: ", gui.resistance)
+            # print("voltage: ", gui.resistance)
             obj.flipped = flip
             obj.resistance = resistance
-            print(obj)
+            circuit_objects[y][x] = obj
+            print(obj, circuit_objects[y][x])
 
         elif item == 7:
             print(ti(circuit_objects, (y, x)).charge)
@@ -1409,48 +1424,119 @@ def left_click(event):
             capacitance_dialog = CapacitorDialog(
                 root, obj.capacitance, obj.flipped, event.x_root, event.y_root)
             root.wait_window(capacitance_dialog.top)
-            #print("capacitance: ", gui.capacitance)
-            #print("charge:", obj.charge)
             obj.flipped = flip
             obj.capacitance = capacitance
-        # print("clicked at", x, y)
+
+        new_data = obj.get_data()
+        changes.append(
+            [gen_change(old_code, old_data, new_code, new_data, coords[0], coords[1])])
+        index += 1
+        # print(changes)
     else:
         add_item(mode if mode != 4 else 0)
-
+    # current_change.append('new')
     draw_circuit()
 
 
 # draw the grid
 def handle_key(event):
     global circuit_objects, x, y
-    #print(event.x, event.y)
-    #print(event.x_root, event.y_root)
-    #x, y = (event.x // 20, event.y // 20)
-
-    # take care of inconsitencies with mouse position
-    #x, y = (circuit_view.winfo_pointerx() // 20, circuit_view.winfo_pointery() // 20)
-    #print(x, y)
     if event.char == "r":
-        add_resistor()
+        resistor_button.invoke()
+        resistor_button.focus_set()
     elif event.char == "b":
-        add_battery()
-    elif event.char == "i":
-        add_input_node()
-    elif event.char == "o":
-        add_output_node()
+        battery_button.invoke()
+        battery_button.focus_set()
     elif event.char == "c":
-        add_capacitor()
-    elif event.char == "t":
-        item = ti(circuit_objects, (y, x))
-        print(item)
-        print("voltage: ", item.voltage)
-        print("resistance: ", item.resistance)
-        print("current: ", item.current)
+        capacitor_button.invoke()
+        capacitor_button.focus_set()
+    elif event.char == 'w':
+        wire_button.invoke()
+        wire_button.focus_set()
+    elif event.char == 'h':
+        pointer_button.invoke()
+        pointer_button.focus_set()
+    elif event.char == 'd':
+        delete_button.invoke()
+        delete_button.focus_set()
 
 
 def reset(event):
-    global old_x, old_y
+    global old_x, old_y, changes, current_change, index
     old_x, old_y = None, None
+    #print('size of changes: ', sys.getsizeof(changes))
+    if current_change != []:
+        if index != len(changes)-1:
+            changes = changes[:index+1]
+        changes.append(current_change)
+        index += 1
+        current_change = []
+    # print(changes)
+
+
+def undo(event):
+    do_change(event)
+
+
+def redo(event):
+    do_change(event, undo=False)
+
+
+def do_change(event, undo=True):
+    global changes, current_change, index, x, y
+
+    # print(changes[index])
+    if not undo:
+        index += 1
+        if index > len(changes):
+            index -= 1
+            return
+    try:
+        change = changes[index]
+
+    except IndexError:
+        if not undo:
+            index -= 1
+        return
+    if undo:
+        index -= 1
+    if index < -1:
+        index += 1
+        return
+    for bit in change:
+        if undo:
+            code = bit['old_code']
+            data = bit['old_data']
+        else:
+            code = bit['new_code']
+            data = bit['new_data']
+        x, y = bit['x'], bit['y']
+        # if it was 0, delete what's there
+        if code == 0:
+            soft_delete()
+            continue
+        flipped = data['flipped']
+        if code == 1:
+            resistance = data['resistance']
+            wire = Wire(resistance)
+            soft_add_specific_item(1, wire)
+
+        elif code == 5:
+            voltage = data['voltage']
+            battery = Battery(voltage, flipped=flipped)
+            soft_add_specific_item(5, battery)
+
+        elif code == 6:
+            resistance = data['resistance']
+            resistor = Resistor(resistance, flipped=flipped)
+            soft_add_specific_item(6, resistor)
+
+        elif code == 7:
+            capacitance = data['capacitance']
+            capacitor = Capacitor(capacitance, flipped=flipped)
+            soft_add_specific_item(7, capacitor)
+    draw_circuit()
+    reset(event)
 
 
 def select_wire():
@@ -1500,6 +1586,8 @@ def update_pos(event):
 
 
 circuit_view.bind("<Motion>", update_pos)
+circuit_view.bind_all("<Control-Key-y>", redo)
+circuit_view.bind_all("<Control-Key-z>", undo)
 circuit_view.bind("<Key>", key)
 circuit_view.bind("<B1-Motion>", left_click)
 circuit_view.bind("<Button-1>", left_click)
@@ -1507,7 +1595,6 @@ circuit_view.bind("<ButtonRelease-1>", reset)
 circuit_view.bind("<Button-3>", right_click)
 
 circuit_view.bind_all("<KeyRelease>", handle_key)
-
 
 R_eq = 0
 I_tot = 0
@@ -1520,36 +1607,38 @@ label2.grid(
     row=1, column=0, sticky="w"
 )
 
-
 builder_button_padding = (5, 5)
 builder = ttk.LabelFrame(options_view, text="Builder")
 builder.grid(row=1, column=0, pady=(0, padding[1]))
 
 # row 1
-pointer_button = ttk.Button(builder, image=cursor_img, command=select_none).grid(
+pointer_button = ttk.Button(builder, image=cursor_img, command=select_none)
+pointer_button.grid(
     row=0, column=0, padx=builder_button_padding[0], pady=builder_button_padding[1])
-pointer_button = ttk.Button(builder, image=delete_img, command=select_delete).grid(
+delete_button = ttk.Button(builder, image=delete_img, command=select_delete)
+delete_button.grid(
     row=0, column=1, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
+wire_button = ttk.Button(
+    builder, image=wire_straight_imgs['horizontal'], command=select_wire)
+wire_button.grid(
+    row=0, column=2, padx=(0, builder_button_padding[0]), pady=builder_button_padding[1])
 
 # row 2
-wire_button = ttk.Button(builder, image=wire_straight_imgs['horizontal'], command=select_wire).grid(
+battery_button = ttk.Button(
+    builder, image=battery_imgs['left'], command=select_battery)
+battery_button.grid(
     row=1, column=0, padx=builder_button_padding[0], pady=(0, builder_button_padding[1]))
-input_node_button = ttk.Button(builder, image=input_node_junction_imgs['right'], command=select_input_node).grid(
+resistor_button = ttk.Button(
+    builder, image=resistor_imgs['horizontal'], command=select_resistor)
+resistor_button.grid(
     row=1, column=1, padx=(0, builder_button_padding[0]), pady=(0, builder_button_padding[1]))
-output_node_button = ttk.Button(builder, image=output_node_cross_imgs['right'], command=select_output_node).grid(
+capacitor_button = ttk.Button(
+    builder, image=capacitor_imgs['horizontal'], command=select_capacitor)
+capacitor_button.grid(
     row=1, column=2, padx=(0, builder_button_padding[0]), pady=(0, builder_button_padding[1]))
-
-# row 3
-battery_button = wire_button = ttk.Button(builder, image=battery_imgs['left'], command=select_battery).grid(
-    row=2, column=0, padx=builder_button_padding[0], pady=(0, builder_button_padding[1]))
-resistor_button = wire_button = ttk.Button(builder, image=resistor_imgs['horizontal'], command=select_resistor).grid(
-    row=2, column=1, padx=(0, builder_button_padding[0]), pady=(0, builder_button_padding[1]))
-capacitor_button = wire_button = ttk.Button(builder, image=capacitor_imgs['horizontal'], command=select_capacitor).grid(
-    row=2, column=2, padx=(0, builder_button_padding[0]), pady=(0, builder_button_padding[1]))
 
 labelframe = ttk.LabelFrame(options_view, text="This is a LabelFrame").grid(
     row=3, column=0, sticky='w')
-
 
 dir = 1
 cw = bool(dir)
@@ -1558,15 +1647,15 @@ cw = bool(dir)
 def run_circuit():
     # Run circuit and update labels
     global circuit, circuit_objects, circuit_objects_list, R_eq, capacitors, style
-    style.theme_use(style_str)
-    circuit_view.configure(bg="gray10")
+    # style.theme_use(style_str)
+    # circuit_view.configure(bg="gray10")
     # Get origin, end, and already_visited
     # end is battery location, origin is 2 away, already visited is 1 away
     for i, row in enumerate(circuit):
         for j, item in enumerate(row):
             if item == 5:
                 end = (i, j)
-
+    battery_location = end
     # get neighbors for battery
     i, j = end
     up = (i - 1, j)
@@ -1624,18 +1713,32 @@ def run_circuit():
         end,
         ti(circuit, end),
     )
-    paths = get_path(origin, current_path, already_visited, end)
+    raw_paths = get_path(origin, current_path, already_visited, end)
 
     # New approach
 
     # Iterate through each step, checking the item at step
-    x_path = []
-    circuit_objs = []
 
     skip_until = False
     target = (0, 0)
-    if isinstance(paths[0], tuple):
-        paths = [paths]
+    if isinstance(raw_paths[0], tuple):
+        raw_paths = [raw_paths]
+    paths = [path for path in raw_paths if end in path]
+    paths_intersection = []
+    if len(paths) > 1:
+        for item in paths[0]:
+            add = True
+            for path in paths[1:]:
+                if item not in path:
+                    add = False
+            if add:
+                paths_intersection.append(item)
+    # print_path(list(paths_intersection))
+    #print("intersection: ", paths_intersection)
+    # construct a string from this to get the segments,
+    x_path = [paths[0][0]]
+    circuit_objs = []
+
     for i, step in enumerate(paths[0][1:]):
         if skip_until and step != target:
             continue
@@ -1644,8 +1747,10 @@ def run_circuit():
         item = ti(circuit, step)
         x_path.append(step)
 
-        # print(item)
-
+        # get number of neighbors
+        possibilities = get_possibilities(step[0], step[1])
+        neighbors = [neighbor for neighbor in get_neighbors(
+            circuit, possibilities) if neighbor not in x_path]
         # Check for resistor:
         if item == 6:
             circuit_objs.append(ti(circuit_objects, step))
@@ -1654,101 +1759,29 @@ def run_circuit():
             circuit_objs.append(ti(circuit_objects, step))
 
         # Check for node:
-        elif item == 2:
+
+        elif len(neighbors) > 1:
             previous_item = ti(circuit, paths[0][i])
             # Generate new paths starting at this node:
+            # find next path element that is in intersection
+            end = paths_intersection[paths_intersection.index(step) + 1]
 
-            new_paths = get_path(step, [], [paths[0][i]], end)
-
-            # print_path(new_path)
-            # Find the end, when num of input and output nodes are equal
-            num_input = 0
-            num_output = 0
-            # print("newpaths0")
-            # print_path(new_paths[0])
-            for new_step in new_paths[0]:
-
-                new_item = ti(circuit, new_step)
-                if new_item == 2:
-                    num_input += 1
-                elif int(new_item) == 3:
-                    num_output += 1
-                if num_input == num_output:
-                    ending = new_step
-                    break
-            # Shorten the paths
-            shortened_paths = []
-            for new_path in new_paths:
-                shortened_path = new_path[: new_path.index(ending) + 1]
-                if shortened_path not in shortened_paths:
-                    shortened_paths.append(
-                        new_path[: new_path.index(ending) + 1])
-                    # print_path(new_path[:new_path.index(ending)+1])
-            # print(shortened_paths)
-
-            circuit_objs.append(ParallelCell(shortened_paths))
+            raw_new_paths = get_path(step, [], [paths[0][i]], end)
+            new_paths = [
+                new_path for new_path in raw_new_paths if end in new_path]
+            for p in new_paths:
+                for s in p:
+                    x_path.append(s)
+            circuit_objs.append(ParallelCell(new_paths))
             skip_until = True
-            target = ending
+            target = end
 
     # print_path(x_path)
     print("circuit_items", circuit_objs)
+    # EXPERIMENTAL
+    things = {'wire': [], 'input': [], 'output': [],
+              'resistor': [], 'battery': [], 'capacitor': []}
 
-    circuit_resistance = sum([x.resistance for x in circuit_objs])
-    print("resistance", circuit_resistance)
-    circuit_objs = CircuitSegment(circuit_objs)
-    #R_eq = sum([x.resistance for x in circuit_objs])
-    R_eq = circuit_objs.resistance
-    V_tot = ti(circuit_objects, end).voltage
-    I_tot = V_tot / R_eq
-    C_eq = circuit_objs.capacitance
-    print("equivalent capacitance: ", C_eq)
-    for item in circuit_objs.contents:
-        item.voltage = item.resistance * I_tot
-
-    # We can reduce the circuit such that it only has 1 capacitor of capacitance C_eq and 1 resistor of R_eq
-
-    # Voltage of capacitor is V_tot - V_res = V_tot - R_eq*I_tot
-
-    # V_c = V_tot - R_eq*I_tot
-    V_c = V_tot
-    Q = C_eq * V_c
-
-    # Set each capacitor in series to have a charge of Q
-    circuit_objs.charge = Q
-    for capacitor in capacitors:
-        capacitor.times = []
-        capacitor.charges = []
-    # compute for 10 time constants
-    print("current_circuit: ", circuit_objs)
-    circuit_tau = R_eq * C_eq
-    for cycle in range(10):
-        current_time = cycle * circuit_tau
-        for capacitor in capacitors:
-            current_charge = capacitor.charge * (1 - math.exp(-cycle))
-            capacitor.times.append(current_time)
-            capacitor.charges.append(current_charge)
-
-
-
-
-    if len(capacitors) > 0:
-        fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
-
-        for i, capacitor in enumerate(capacitors):
-
-            x_new = np.linspace(0, capacitor.times[-1], 300)
-            a_BSpline = interpolate.make_interp_spline(
-                capacitor.times, capacitor.charges)
-            y_new = a_BSpline(x_new)
-            try:
-                ax[i].plot(x_new, y_new)
-            except TypeError:
-                ax.plot(x_new, y_new)
-        plt.show()
-
-
-    #EXPERIMENTAL
-    things = {'wire':[], 'input':[], 'output':[], 'resistor':[], 'battery':[], 'capacitor':[]}
     for item in circuit_objects_list:
         if isinstance(item, Wire):
             things['wire'].append(item)
@@ -1767,19 +1800,67 @@ def run_circuit():
 
         elif isinstance(item, Capacitor):
             things['capacitor'].append(item)
+    circuit_resistance = sum([x.resistance for x in circuit_objs])
+    print("resistance", circuit_resistance)
+    circuit_objs = CircuitSegment(circuit_objs)
+    # R_eq = sum([x.resistance for x in circuit_objs])
+    R_eq = circuit_objs.resistance
+    V_tot = ti(circuit_objects, battery_location).voltage
+    I_tot = V_tot / R_eq
+    print(V_tot, R_eq, V_tot/R_eq)
+    C_eq = circuit_objs.capacitance
+    print("equivalent capacitance: ", C_eq)
+    for item in circuit_objs.contents:
+        item.voltage = item.resistance * I_tot
+
+    # We can reduce the circuit such that it only has 1 capacitor of capacitance C_eq and 1 resistor of R_eq
+
+    # Voltage of capacitor is V_tot - V_res = V_tot - R_eq*I_tot
+
+    # V_c = V_tot - R_eq*I_tot
+    V_c = V_tot
+    Q = C_eq * V_c
+
+    # Set each capacitor in series to have a charge of Q
+    circuit_objs.charge = Q
+    capacitors = things['capacitor']
+    for capacitor in capacitors:
+        capacitor.times = []
+        capacitor.charges = []
+    # compute for 10 time constants
+    print("current_circuit: ", circuit_objs)
+    circuit_tau = R_eq * C_eq
+    for cycle in range(10):
+        current_time = cycle * circuit_tau
+        for capacitor in capacitors:
+            current_charge = capacitor.charge * (1 - math.exp(-cycle))
+            capacitor.times.append(current_time)
+            capacitor.charges.append(current_charge)
+
+    if len(capacitors) > 0:
+        fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
+
+        for i, capacitor in enumerate(capacitors):
+
+            x_new = np.linspace(0, capacitor.times[-1], 300)
+            a_BSpline = interpolate.make_interp_spline(
+                capacitor.times, capacitor.charges)
+            y_new = a_BSpline(x_new)
+            try:
+                ax[i].plot(x_new, y_new)
+            except TypeError:
+                ax.plot(x_new, y_new)
+        plt.show()
 
     print(things)
 
-
-
-
-
-    print("total_current", I_tot)
-    print(R_eq)
+    print("total current: ", I_tot, "A")
+    print("equivalent resistance: ", R_eq, "Ω")
 
 
 run_button = ttk.Button(options_view, text="Run",
-                        command=run_circuit).grid(row=4, column=0, pady=padding[1])
+                        command=run_circuit)
+run_button.grid(row=4, column=0, pady=padding[1])
 
 
 def toggle_labels():
@@ -1790,7 +1871,6 @@ def toggle_labels():
 
 labels_button = ttk.Checkbutton(
     options_view, text="Hide Labels", command=toggle_labels).grid(row=6, sticky=W)
-
 
 clear_button = ttk.Button(options_view, text="Clear", command=clear_circuit).grid(
     row=5, column=0, pady=(0, padding[1])
