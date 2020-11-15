@@ -9,6 +9,7 @@ from PIL import Image, ImageTk, ImageOps
 from scipy import interpolate
 import numpy as np
 import sys
+import time
 
 # Colors
 color1 = "#F7F7F8"
@@ -1048,6 +1049,7 @@ def get_neighbors(arr, possibilities):
 
 def draw_circuit():
     global circuit, circuit_objects
+    start = time.time()
     circuit_view.delete(ALL)
     # draw_grid()
 
@@ -1211,8 +1213,9 @@ def draw_circuit():
                         obj.draw(i, j, state="cross", direction="any")
                     except TypeError:
                         obj.draw(i, j)
-
+    print('iter time w/o grid: ', time.time() - start)
     draw_grid()
+    print('iter time: ',time.time()-start)
 
 
 def clear_circuit():
@@ -1440,22 +1443,28 @@ def handle_key(event):
     global circuit_objects, x, y
     if event.char == "r":
         resistor_button.invoke()
+        resistor_button.focus_set()
     elif event.char == "b":
         battery_button.invoke()
+        battery_button.focus_set()
     elif event.char == "c":
         capacitor_button.invoke()
+        capacitor_button.focus_set()
     elif event.char == 'w':
         wire_button.invoke()
+        wire_button.focus_set()
     elif event.char == 'h':
         pointer_button.invoke()
+        pointer_button.focus_set()
     elif event.char == 'd':
         delete_button.invoke()
+        delete_button.focus_set()
 
 
 def reset(event):
     global old_x, old_y, changes, current_change, index
     old_x, old_y = None, None
-    print('size of changes: ', sys.getsizeof(changes))
+    #print('size of changes: ', sys.getsizeof(changes))
     if current_change != []:
         if index != len(changes)-1:
             changes = changes[:index+1]
@@ -1850,7 +1859,8 @@ def run_circuit():
 
 
 run_button = ttk.Button(options_view, text="Run",
-                        command=run_circuit).grid(row=4, column=0, pady=padding[1])
+                        command=run_circuit)
+run_button.grid(row=4, column=0, pady=padding[1])
 
 
 def toggle_labels():
