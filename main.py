@@ -1759,16 +1759,9 @@ def run_circuit():
             continue
     origin = neighbors[0]
     current_path = []
-    print(
-        origin,
-        ti(circuit, origin),
-        already_visited,
-        ti(circuit, already_visited[0]),
-        end,
-        ti(circuit, end),
-    )
+    start = time.time()
     raw_paths = get_path(origin, current_path, already_visited, end)
-
+    print('path detection time: ', time.time()-start)
     # New approach
 
     # Iterate through each step, checking the item at step
@@ -1787,12 +1780,11 @@ def run_circuit():
                     add = False
             if add:
                 paths_intersection.append(item)
-    # print_path(list(paths_intersection))
-    #print("intersection: ", paths_intersection)
+
     # construct a string from this to get the segments,
     x_path = [paths[0][0]]
     circuit_objs = []
-
+    start = time.time()
     for i, step in enumerate(paths[0][1:]):
         if skip_until and step != target:
             continue
@@ -1829,8 +1821,7 @@ def run_circuit():
             circuit_objs.append(ParallelCell(new_paths))
             skip_until = True
             target = end
-
-    # print_path(x_path)
+    print('getting all items and parallel cells: ', time.time()-start)
     print("circuit_items", circuit_objs)
     # EXPERIMENTAL
     things = {'wire': [], 'input': [], 'output': [],
