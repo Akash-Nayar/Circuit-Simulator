@@ -1036,10 +1036,9 @@ def draw_item(i, j, surrounding=False):
     if item == 0:
         return
 
-
     if len(neighbors) == 0:
         print("drawing here")
-        obj.draw(i, j, direction="horizontal")
+        obj.draw(i, j)
     elif len(neighbors) == 1:
         # if on same row, horizontal
         if neighbors[0][0] == i:
@@ -1372,9 +1371,10 @@ last_placed = {'time': time.time(), 'x': None, 'y': None}
 
 dialog_open = False
 
+
 def left_click(event):
     global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index, last_placed, dialog_open
-    print('updated')
+    update_pos(event)
     #print('last placed: ', last_placed)
     if x not in list(range(circuit_width)) or y not in list(range(circuit_height)):
         return
@@ -1527,7 +1527,6 @@ def handle_key(event):
 def reset(event):
     global old_x, old_y, changes, current_change, index
     old_x, old_y = None, None
-    #print('size of changes: ', sys.getsizeof(changes))
     if current_change != []:
         if index != len(changes)-1:
             changes = changes[:index+1]
@@ -1548,7 +1547,6 @@ def redo(event):
 def do_change(event, undo=True):
     global changes, current_change, index, x, y
 
-    # print(changes[index])
     if not undo:
         index += 1
         if index > len(changes):
@@ -1566,7 +1564,9 @@ def do_change(event, undo=True):
     if index < -1:
         index += 1
         return
-    for bit in change:
+
+    # Remove in reverse order
+    for bit in change[::-1]:
         if undo:
             code = bit['old_code']
             data = bit['old_data']
