@@ -1565,8 +1565,11 @@ def do_change(event, undo=True):
         index += 1
         return
 
-    # Remove in reverse order
-    for bit in change[::-1]:
+    # Remove in reverse order if undo
+    if undo:
+        change = reversed(change)
+
+    for bit in change:
         if undo:
             code = bit['old_code']
             data = bit['old_data']
