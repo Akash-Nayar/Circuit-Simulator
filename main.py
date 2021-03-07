@@ -1022,6 +1022,7 @@ def draw_item(i, j, surrounding=False):
     item = ti(circuit, (i, j))
 
     obj = circuit_objects[i][j]
+    print('item, obj', item, obj)
     # for component in obj.drawing:
     # circuit_view.delete(component)
 
@@ -1035,8 +1036,10 @@ def draw_item(i, j, surrounding=False):
     if item == 0:
         return
 
+
     if len(neighbors) == 0:
-        obj.draw(i, j)
+        print("drawing here")
+        obj.draw(i, j, direction="horizontal")
     elif len(neighbors) == 1:
         # if on same row, horizontal
         if neighbors[0][0] == i:
@@ -1367,10 +1370,11 @@ current_change = []
 
 last_placed = {'time': time.time(), 'x': None, 'y': None}
 
+dialog_open = False
 
 def left_click(event):
-    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index, last_placed
-    update_pos(event)
+    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index, last_placed, dialog_open
+    print('updated')
     #print('last placed: ', last_placed)
     if x not in list(range(circuit_width)) or y not in list(range(circuit_height)):
         return
@@ -1383,8 +1387,10 @@ def left_click(event):
 
     # If mode is 0, select tool
     if mode == 0:
+
         if item in [0, 1]:
             return
+        dialog_open = True
         old_code = item
         new_code = item
         old_data = circuit_objects[y][x].get_data()
@@ -1418,14 +1424,19 @@ def left_click(event):
                 root, obj.capacitance, obj.flipped, event.x_root, event.y_root)
             root.wait_window(capacitance_dialog.top)
             obj.flipped = flip
+            print(obj.capacitance, capacitance)
             obj.capacitance = capacitance
 
+        draw_item(y, x)
+        print('drew item')
+        print(y, x)
         new_data = obj.get_data()
         changes.append(
             [gen_change(old_code, old_data, new_code, new_data, coords[0], coords[1])])
         index += 1
         # print(changes)
-        draw_item(y, x)
+        print('dialog closing')
+        dialog_open = False
     else:
         add_item(mode if mode != 4 else 0)
         print('placed at: ', x, y, 'previous location: ',
@@ -1632,11 +1643,12 @@ def select_delete():
 
 
 def update_pos(event):
-    global label2, x, y
-    x = event.x // 20
-    y = event.y // 20
-    #print(x, y)
-    label2.config(text=f'({x}, {y})')
+    global label2, x, y, dialog_open
+    if not dialog_open:
+        x = event.x // 20
+        y = event.y // 20
+        #print(x, y)
+        label2.config(text=f'({x}, {y})')
 
 
 circuit_view.bind("<Motion>", update_pos)
