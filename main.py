@@ -81,6 +81,10 @@ for i in range(50):
 resistor_canvas.grid(row=0, column=0)
 resistor_scrollbar.grid(row=1, column=0)
 """
+
+unicode_dict = {0: '\u2080', 1:'\u2081', 2:'\u2082', 3:'\u2083', 4:'\u2084', 5:'\u2085', 6:'\u2086', 7:'\u2087', 8:'\u2088', 9:'\u2089', }
+
+print('\2080')
 padding = (10, 10)
 tab_control.add(creator, text='Creator')
 tab_control.add(observer, text='Observer')
@@ -512,10 +516,17 @@ class Resistor(CircuitItem):
 
     id = 1
 
-    def __init__(self, resistance, flipped=False):
+    def __init__(self, resistance, flipped=False, id=None):
         super().__init__(resistance=resistance, flipped=flipped)
-        self.id = Resistor.id
-        Resistor.id += 1
+        if not id:
+            next_id = Resistor.id
+            while not is_valid_id(Resistor, next_id):
+                next_id += 1
+            self.id = next_id
+
+            Resistor.id = next_id + 1
+        else:
+            self.id = id
 
     def __repr__(self):
         return f"Resistor({self.resistance})"
@@ -527,30 +538,36 @@ class Resistor(CircuitItem):
         for component in self.drawing:
             circuit_view.delete(component)
         self.drawing = []
-        if draw_labels:
-            if self.flipped:
-                multiplier = -3
-                angle_offset = 180
-            else:
-                multiplier = 1
-                angle_offset = 0
-            if direction == "horizontal":
-                # Draw labels above
-                self.drawing.append(circuit_view.create_text(
-                    j * 20 + 10,
-                    i * 20 - multiplier * 10,
-                    text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
-                    angle=angle_offset,
-                    fill='white' if style_str == 'awdark' else 'black'
-                ))
-            else:
-                self.drawing.append(circuit_view.create_text(
-                    j * 20 - multiplier * 10,
-                    i * 20 + 10,
-                    text=f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω",
-                    angle=angle_offset + 90,
-                    fill='white' if style_str == 'awdark' else 'black'
-                ))
+        #if draw_labels:
+        angle_offset = 180 if self.flipped else 0
+        resistance_str = f"{int(self.resistance) if self.resistance.is_integer() else self.resistance} Ω"
+        if not draw_labels:
+            resistance_str = " " * len(resistance_str)
+
+        name_str = f"R{''.join(unicode_dict[int(i)] for i in str(self.id))}"
+        diff = len(resistance_str) - len(name_str)
+        print('diff:', diff)
+        if diff > 0:
+            text = f"{resistance_str}\n\n\n{' ' * max(diff - int(not draw_labels), 0)}{name_str}"
+        else:
+            text = f"{' ' * max(int(abs(diff) / 1.4)-2, 0)}{resistance_str}\n\n\n{name_str}"
+        if direction == "horizontal":
+            # Draw labels above
+            self.drawing.append(circuit_view.create_text(
+                j * 20 + 10,
+                i * 20 + 10,
+                text=text,
+                angle=angle_offset,
+                fill='white' if style_str == 'awdark' else 'black'
+            ))
+        else:
+            self.drawing.append(circuit_view.create_text(
+                j * 20 + 10,
+                i * 20 + 10,
+                text=text,
+                angle=angle_offset + 90,
+                fill='white' if style_str == 'awdark' else 'black'
+            ))
 
         try:
             self.drawing.append(circuit_view.create_image(
@@ -560,7 +577,7 @@ class Resistor(CircuitItem):
             pass
 
     def get_data(self):
-        return {'resistance': self.resistance, 'flipped': self.flipped}
+        return {'resistance': self.resistance, 'flipped': self.flipped,'id':self.id}
 
 
 class Battery(CircuitItem):
@@ -626,13 +643,20 @@ class Capacitor(CircuitItem):
     imgs = capacitor_imgs
     default_direction = "horizontal"
 
-    def __init__(self, capacitance, flipped=False):
+    def __init__(self, capacitance, flipped=False, id=None):
         super().__init__(capacitance=capacitance, flipped=flipped)
         self.times = []
         self.charges = []
         self._tau = 0.0
-        self.id = Capacitor.id
-        Capacitor.id += 1
+        if not id:
+            next_id = Capacitor.id
+            while not is_valid_id(Capacitor, next_id):
+                next_id += 1
+            self.id = next_id
+
+            Capacitor.id = next_id + 1
+        else:
+            self.id = id
 
     @property
     def tau(self):
@@ -645,30 +669,36 @@ class Capacitor(CircuitItem):
         for component in self.drawing:
             circuit_view.delete(component)
         self.drawing = []
-        if draw_labels:
-            if self.flipped:
-                multiplier = -3
-                angle_offset = 180
-            else:
-                multiplier = 1
-                angle_offset = 0
-            if direction == "horizontal":
-                # Draw labels above
-                self.drawing.append(circuit_view.create_text(
-                    j * 20 + 10,
-                    i * 20 - multiplier * 10,
-                    text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
-                    angle=angle_offset,
-                    fill='white' if style_str == 'awdark' else 'black'
-                ))
-            else:
-                self.drawing.append(circuit_view.create_text(
-                    j * 20 - multiplier * 10,
-                    i * 20 + 10,
-                    text=f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F",
-                    angle=angle_offset + 90,
-                    fill='white' if style_str == 'awdark' else 'black'
-                ))
+        #if draw_labels:
+        angle_offset = 180 if self.flipped else 0
+        capacitance_str = f"{int(self.capacitance) if self.capacitance.is_integer() else self.capacitance} F"
+        if not draw_labels:
+            capacitance_str = " " * len(capacitance_str)
+        name_str = f"C{''.join(unicode_dict[int(i)] for i in str(self.id))}"
+        diff = len(capacitance_str) - len(name_str)
+        print('diff:', diff )
+        if diff > 0:
+            text = f"{capacitance_str}\n\n\n{' ' * max(diff-1, 0)}{name_str}"
+        else:
+            text = f"{' ' * max(int(abs(diff)/1.4), 0)}{capacitance_str}\n\n\n{name_str}"
+        if direction == "horizontal":
+            # Draw labels above
+            self.drawing.append(circuit_view.create_text(
+                j * 20 + 10,
+                i * 20 + 10,
+                text=text,
+                angle=angle_offset,
+                fill='white' if style_str == 'awdark' else 'black'
+            ))
+
+        else:
+            self.drawing.append(circuit_view.create_text(
+                j * 20 + 10,
+                i * 20 + 10,
+                text=text,
+                angle=angle_offset + 90,
+                fill='white' if style_str == 'awdark' else 'black'
+            ))
 
         try:
             self.drawing.append(circuit_view.create_image(
@@ -678,7 +708,7 @@ class Capacitor(CircuitItem):
             pass
 
     def get_data(self):
-        return {'capacitance': self.capacitance, 'flipped': self.flipped}
+        return {'capacitance': self.capacitance, 'flipped': self.flipped, 'id':self.id}
 
 
 class ParallelCell(CircuitItem):
@@ -835,11 +865,32 @@ class ParallelCell(CircuitItem):
         return sum([segment.capacitance for segment in self.paths_items])
 
 
+def is_valid_id(cls, id):
+    global circuit_objects
+    for r, row in enumerate(circuit_objects):
+        for c, item in enumerate(row):
+            if not isinstance(item, cls):
+                continue
+            if item.id == id:
+                return False
+    return True
+
+
 voltage = 15.0
 resistance = 10.0
 capacitance = 10.0
+new_id = 1
 flip = False
 
+
+def validate_postitive_int(s):
+    if s == '':
+        return True
+    try:
+        num = int(s)
+    except ValueError:
+        return False
+    return num >= 0
 
 def validate_float(flt, positive=False):
     if not positive:
@@ -927,7 +978,7 @@ class CapacitorDialog:
 
 
 class ResistorDialog:
-    def __init__(self, parent, default, flip_default, x, y):
+    def __init__(self, parent, default, default_id, flip_default, x, y):
         self.top = Toplevel(parent)
         self.resistance_label = Label(self.top, text="Resistance")
         self.resistance_label.pack()
@@ -938,6 +989,18 @@ class ResistorDialog:
         self.resistance_box.config(
             validate="key", validatecommand=(self.reg, "%P"))
         self.resistance_box.pack()
+
+        self.id_label = Label(self.top, text="Label")
+        self.id_label.pack()
+        entry_id = StringVar()
+        entry_id.set(default_id)
+        self.id_box = Entry(self.top, textvariable=entry_id)
+        self.reg_id = self.top.register(validate_postitive_int)
+        self.id_box.config(
+            validate="key", validatecommand=(self.reg_id, "%P"))
+        self.id_box.pack()
+
+
         self.flip = IntVar(value=int(flip_default))
         self.flip_check = Checkbutton(
             self.top, text="Flip label", variable=self.flip)
@@ -950,9 +1013,10 @@ class ResistorDialog:
         self.top.geometry(f"+{x + 20}+{y - int(h / 2)}")
 
     def send(self):
-        global resistance, flip
+        global resistance, flip, new_id
         resistance = float(self.resistance_box.get())
         flip = bool(self.flip.get())
+        new_id = int(self.id_box.get())
         self.top.destroy()
 
 
@@ -1215,6 +1279,11 @@ def clear_circuit():
     changes = []
     current_change = []
     index = -1
+
+    # Reset IDs
+    Resistor.id = 1
+    Capacitor.id = 1
+
     draw_circuit()
 
 
@@ -1373,7 +1442,7 @@ dialog_open = False
 
 
 def left_click(event):
-    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, index, last_placed, dialog_open
+    global circuit, circuit_objects, old_x, old_y, capacitance, resistance, voltage, x, y, mode, changes, current_change, index, last_placed, dialog_open
     update_pos(event)
     #print('last placed: ', last_placed)
     if x not in list(range(circuit_width)) or y not in list(range(circuit_height)):
@@ -1387,7 +1456,7 @@ def left_click(event):
 
     # If mode is 0, select tool
     if mode == 0:
-
+        current_change = []
         if item in [0, 1]:
             return
         dialog_open = True
@@ -1409,11 +1478,33 @@ def left_click(event):
             obj = circuit_objects[y][x]
             print(circuit_objects[y][x])
             resistance_dialog = ResistorDialog(
-                root, obj.resistance, obj.flipped, event.x_root, event.y_root)
+                root, obj.resistance, obj.id, obj.flipped, event.x_root, event.y_root)
             root.wait_window(resistance_dialog.top)
             # print("voltage: ", gui.resistance)
+
             obj.flipped = flip
             obj.resistance = resistance
+
+            # Handle the new ID
+            if new_id != obj.id:
+                # Look to see if assuming another resistor's ID
+                done = False
+                for r, row in enumerate(circuit_objects):
+                    if done:
+                        break
+                    for c, item in enumerate(row):
+                        if not isinstance(item, Resistor):
+                            continue
+                        if item.id == new_id:
+                            item_old_data = item.get_data()
+                            item.id = obj.id
+                            item_new_data = item.get_data()
+                            current_change.append(
+                                gen_change(old_code, item_old_data, new_code, item_new_data, c, r))
+                            draw_item(r, c)
+                            done = True
+                            break
+            obj.id = new_id
             circuit_objects[y][x] = obj
             print(obj, circuit_objects[y][x])
 
@@ -1431,11 +1522,13 @@ def left_click(event):
         print('drew item')
         print(y, x)
         new_data = obj.get_data()
-        changes.append(
-            [gen_change(old_code, old_data, new_code, new_data, coords[0], coords[1])])
+        current_change.append(
+            gen_change(old_code, old_data, new_code, new_data, coords[0], coords[1]))
         index += 1
         # print(changes)
         print('dialog closing')
+        changes.append(current_change)
+        current_change = []
         dialog_open = False
     else:
         add_item(mode if mode != 4 else 0)
@@ -1522,6 +1615,7 @@ def handle_key(event):
         print(item)
         if item != 0:
             print('id: ', item.uid)
+            print('voltage', item.voltage)
 
 
 def reset(event):
@@ -1594,12 +1688,14 @@ def do_change(event, undo=True):
 
         elif code == 6:
             resistance = data['resistance']
-            resistor = Resistor(resistance, flipped=flipped)
+            id = data['id']
+            resistor = Resistor(resistance, flipped=flipped, id=id)
             soft_add_specific_item(6, resistor)
 
         elif code == 7:
             capacitance = data['capacitance']
-            capacitor = Capacitor(capacitance, flipped=flipped)
+            id = data['id']
+            capacitor = Capacitor(capacitance, flipped=flipped, id=id)
             soft_add_specific_item(7, capacitor)
     draw_circuit()
     reset(event)
@@ -1891,6 +1987,7 @@ def run_circuit():
             capacitor.times.append(current_time)
             capacitor.charges.append(current_charge)
 
+
     if len(capacitors) > 0:
         fig, ax = plt.subplots(nrows=len(capacitors), ncols=1)
 
@@ -1901,9 +1998,9 @@ def run_circuit():
                 capacitor.times, capacitor.charges)
             y_new = a_BSpline(x_new)
             try:
-                ax[i].plot(x_new, y_new)
+                ax[i].plot(x_new, y_new, label=f'C{capacitor.id}')
             except TypeError:
-                ax.plot(x_new, y_new)
+                ax.plot(x_new, y_new,   label=f'C{capacitor.id}')
         plt.show()
 
     print(things)
